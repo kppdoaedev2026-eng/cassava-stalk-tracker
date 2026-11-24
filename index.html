@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<script>window.API_URL="https://script.google.com/macros/s/AKfycbymV5ZSwei-Tell0wHPQSzPOkJrs8SliIw2RPv5NWzBn6fLs427BMLQ--F38QXdHe7e/exec";</script>
+<base target="_top">
+<script>/* v1.7: เปิดนอก GAS (GitHub Pages) → ส่งคำขอไป doPost ของ GAS แทน google.script.run */
+(function(){if((window.google&&google.script&&google.script.run)||!window.API_URL)return;
+function mk(){var ok=function(){},bad=function(){};var o={withSuccessHandler:function(f){ok=f;return o;},withFailureHandler:function(f){bad=f;return o;}};
+['api','login','logout'].forEach(function(fn){o[fn]=function(){var args=[].slice.call(arguments);
+fetch(window.API_URL,{method:'POST',body:JSON.stringify({rpc:fn,args:args})}).then(function(r){return r.json();})
+.then(function(j){if(j&&j.ok)ok(j.r);else bad(new Error((j&&j.error)||'ไม่ทราบสาเหตุ'));})
+.catch(function(e){bad(new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่ ('+e.message+')'));});};});return o;}
+window.google=window.google||{};google.script={run:new Proxy({},{get:function(_,k){return mk()[k];}})};})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ติดตามท่อนพันธุ์มันต้านทานใบด่าง กำแพงเพชร</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --leaf:#2F6B3A; --leaf-2:#4E8F58; --leaf-soft:#E3EEE2; --field:#1D3A26; --root:#8B5E34; --root-soft:#F1E6DA;
+  --bg:#EEF3EE; --paper:#FFFFFF; --line:#D5DED5; --muted:#5E6E62; --amber:#B97B0C; --amber-soft:#FBF0D9; --red:#B83227; --red-soft:#F8E1DE;
+  --r-sm:6px; --r-lg:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'IBM Plex Sans Thai',Tahoma,sans-serif;font-size:15px;line-height:1.55;color:var(--field);background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--leaf)}
+:focus-visible{outline:3px solid #9CC89F;outline-offset:2px}
+h1,h2,h3{margin:0;line-height:1.25}
+h2{font-size:1.15rem;font-weight:600}
+h3{font-size:1rem;font-weight:600}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+/* ── top bar ── */
+.top{position:sticky;top:0;z-index:500;background:var(--field);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{flex:none}
+.brand b{font-size:1.02rem;font-weight:600}
+.brand span{display:block;font-size:.78rem;opacity:.75}
+.top select{background:#2B4E35;color:#fff;border:1px solid #466B50;border-radius:var(--r-sm);padding:6px 8px}
+.top .who{font-size:.85rem;opacity:.9}
+.top button{background:transparent;border:1px solid #466B50;color:#fff;border-radius:var(--r-sm);padding:6px 10px;cursor:pointer}
+nav.tabs{display:flex;gap:2px;padding:0 18px;background:var(--paper);border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:52px;z-index:400}
+nav.tabs button{border:0;background:none;padding:12px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--field);border-bottom-color:var(--leaf);font-weight:600}
+nav.tabs .badge{background:var(--red);color:#fff;border-radius:999px;font-size:.72rem;padding:1px 7px;margin-left:4px}
+main{padding:18px;max-width:1400px;margin:0 auto}
+section.view{display:none}
+section.view.on{display:block}
+/* ── blocks ── */
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:16px}
+.panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.panel-head .spacer{flex:1}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:980px){.grid2,.grid3{grid-template-columns:1fr}}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:16px}
+.kpi{background:var(--paper);padding:14px 16px}
+.kpi .v{font-size:1.7rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .l{font-size:.84rem;color:var(--muted)}
+.kpi .s{font-size:.8rem;color:var(--muted)}
+.kpi.warn .v{color:var(--amber)} .kpi.bad .v{color:var(--red)}
+/* stage track — ตัวเอกของหน้า */
+.track{display:flex;align-items:center;gap:0}
+.track i{width:13px;height:13px;border-radius:50%;border:2px solid #B9C7BA;background:#fff;display:block}
+.track i.d{background:var(--leaf);border-color:var(--leaf)}
+.track i.x{background:var(--red);border-color:var(--red)}
+.track b{width:14px;height:2px;background:#B9C7BA;display:block}
+.track b.d{background:var(--leaf)}
+.funnel{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:6px}
+.funnel .step{position:relative;padding:10px 8px 12px;border-top:4px solid var(--leaf-soft)}
+.funnel .step .n{font-size:1.45rem;font-weight:600;font-variant-numeric:tabular-nums}
+.funnel .step .t{font-size:.82rem;color:var(--muted)}
+.funnel .step .bar{height:8px;background:var(--leaf-soft);border-radius:4px;margin-top:6px;overflow:hidden}
+.funnel .step .bar span{display:block;height:100%;background:var(--leaf)}
+.funnel .step:last-child .bar span{background:var(--root)}
+@media (max-width:760px){.funnel{grid-template-columns:repeat(3,1fr)}}
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-weight:600;color:var(--muted);font-size:.8rem;background:#F6F9F6;position:sticky;top:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#F4F8F3}
+.pbar{height:6px;background:var(--leaf-soft);border-radius:3px;min-width:70px;overflow:hidden}
+.pbar span{display:block;height:100%;background:var(--leaf)}
+.tag{display:inline-block;font-size:.76rem;padding:1px 8px;border-radius:999px;background:var(--leaf-soft);color:var(--field);margin:1px 2px 1px 0;white-space:nowrap}
+.tag.amber{background:var(--amber-soft);color:#7A5205} .tag.red{background:var(--red-soft);color:var(--red)} .tag.root{background:var(--root-soft);color:var(--root)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+/* controls */
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-sm);padding:9px 16px;min-height:40px;cursor:pointer}
+.btn:hover{border-color:var(--leaf-2)}
+.btn.pri{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.btn.pri:hover{background:#285D32}
+.btn.warn{border-color:var(--amber);color:#7A5205}
+.btn.bad{border-color:var(--red);color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.inp,select.inp,textarea.inp{border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;min-height:40px;background:#fff;min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:.86rem}
+.chip.on{background:var(--field);color:#fff;border-color:var(--field)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:.84rem;color:var(--muted)}
+.form label .inp{color:var(--field);font-size:.95rem}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#map{height:430px;border-radius:var(--r-sm);border:1px solid var(--line)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin-top:8px}
+canvas{max-width:100%}
+.leaflet-container canvas{max-width:none!important}
+/* drawer */
+.drawer-bg{position:fixed;inset:0;background:rgba(20,35,24,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--bg);z-index:901;overflow-y:auto;box-shadow:-8px 0 24px rgba(0,0,0,.12)}
+.drawer .dh{position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;gap:10px;align-items:center;z-index:2}
+.drawer .db{padding:16px 18px}
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:8px 0}
+.timeline li .m{width:14px;height:14px;border-radius:50%;border:2px solid #B9C7BA;margin-top:4px;background:#fff}
+.timeline li.d .m{background:var(--leaf);border-color:var(--leaf)}
+.timeline li.x .m{background:var(--red);border-color:var(--red)}
+.rep{border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;background:var(--paper);margin-bottom:10px}
+.rep .ph{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.rep .ph img{width:110px;height:110px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:var(--field)}
+.login form{background:var(--paper);border-radius:var(--r-lg);padding:28px;width:min(380px,100%);display:grid;gap:12px}
+.login h1{font-size:1.25rem;font-weight:600}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--field);color:#fff;padding:10px 18px;border-radius:var(--r-sm);z-index:2000;max-width:90vw}
+.toast.err{background:var(--red)}
+.loading{padding:30px;text-align:center;color:var(--muted)}
+.empty{padding:26px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r-sm)}
+.drop{display:block;border:2px dashed #9DB59F;border-radius:var(--r-lg);padding:36px 20px;text-align:center;background:#F7FAF6;cursor:pointer;transition:background .15s,border-color .15s}
+.drop:hover{border-color:var(--leaf);background:#F0F6EF}
+.drop.over{background:var(--leaf-soft);border-color:var(--leaf)}
+.drop .drop-ico{display:block;margin:0 auto 10px}
+.drop .drop-t{font-size:1.2rem;font-weight:600;color:var(--field)}
+.drop .drop-s{color:var(--muted);margin-top:4px}
+.drop .pick{display:inline-flex;align-items:center;gap:8px;margin-top:16px}
+.btn.lg{padding:12px 24px;font-size:1.05rem;min-height:50px;border-radius:10px;font-weight:600}
+/* หน้านำเข้าไฟล์: ช่องและปุ่มใหญ่ ใช้ง่ายบนมือถือ */
+.imp .form{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px 20px}
+.imp .form label{font-size:.95rem;color:var(--field);font-weight:500;gap:6px}
+.imp .form label .inp,.imp .inp{font-size:1.05rem;padding:12px 14px;min-height:50px;border:1.5px solid #C4D0C5;border-radius:10px}
+.imp .form label .inp:focus{border-color:var(--leaf);outline:none;box-shadow:0 0 0 3px #CFE3D0}
+.imp .req{color:var(--red)}
+.imp .imp-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.imp .imp-actions .btn{flex:1 1 220px}
+.imp-step{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--leaf);color:#fff;font-weight:700;margin-right:8px;font-size:.95rem}
+/* แผนที่แปลง */
+#bigMap{height:calc(100vh - 250px);min-height:480px;border-radius:var(--r-sm);border:1px solid var(--line);background:#E8EEE8}
+.map-tools{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.map-tools label.ck{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:.92rem}
+.map-tools label.ck input{width:18px;height:18px;accent-color:var(--leaf)}
+.lbl-amp{background:transparent;border:0;font-weight:700;font-size:13px;color:#1D3A26;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;text-align:center;pointer-events:none}
+.lbl-tam{background:transparent;border:0;font-size:11px;color:#4A5C4E;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 2px #fff;white-space:nowrap;text-align:center;pointer-events:none}
+.map-legend{background:rgba(255,255,255,.94);padding:8px 10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.2);font-size:12px;line-height:1.7;color:#1D3A26}
+.map-legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.map-legend b.ln{display:inline-block;width:18px;margin-right:6px;vertical-align:middle;border-top-style:solid}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:640px){main{padding:10px}.top{padding:8px 10px}nav.tabs{top:auto;position:static}.kpi .v{font-size:1.35rem}}
+/* ── v1.3: ตารางแบ่งหน้า ── */
+.pager{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
+.pager .info{margin-right:auto;color:var(--muted);font-size:.86rem}
+.pager button{min-width:38px;min-height:36px;border:1px solid var(--line);background:#fff;border-radius:var(--r-sm);cursor:pointer;padding:4px 10px}
+.pager button.on{background:var(--leaf);border-color:var(--leaf);color:#fff;font-weight:600}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager .gap{color:var(--muted);padding:0 2px}
+th.sort{cursor:pointer;user-select:none;white-space:nowrap}
+th.sort:after{content:'⇅';opacity:.35;margin-left:4px;font-size:.8em}
+th.sort.asc:after{content:'▲';opacity:.9}
+th.sort.desc:after{content:'▼';opacity:.9}
+.soil-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle;border:1px solid rgba(0,0,0,.15)}
+/* ── v1.3: นำเข้ารายชื่อซ้ำ ── */
+.dup-note{grid-column:1/-1;background:var(--leaf-soft);border-radius:var(--r-sm);padding:10px 12px;font-size:.9rem}
+.dup-box{border:1px solid #E8C77E;background:#FFFBF0;border-radius:var(--r-lg);padding:12px 14px;margin:0 0 12px}
+.dup-box table td{vertical-align:top}
+.dup-box select{min-width:260px;max-width:100%}
+tr.dup-row td{background:#FFFBF0}
+.dup-why{font-size:.8rem;color:var(--muted)}
+/* ── v1.3: ชั้นดิน ── */
+.soil-ck{background:#F3F8EF;border:1px solid #CFE2C6;border-radius:999px;padding:2px 10px}
+.soil-pop h4{margin:0 0 4px;font-size:14px}
+.soil-pop .cls{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}
+.soil-pop ul{margin:6px 0 0;padding-left:18px}
+.soil-pop li{margin:2px 0}
+.leaflet-popup-content{max-width:330px}
+/* ── v1.3: รายงานผู้บริหาร ── */
+#execWrap{overflow-x:auto}
+.paper{width:1080px;margin:0 auto 16px;background:#fff;color:#1D3A26;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-family:'IBM Plex Sans Thai',Tahoma,sans-serif}
+.ex-head{background:linear-gradient(120deg,#1D3A26 0%,#2F6B3A 60%,#4E8F58 100%);color:#fff;padding:26px 32px 22px;display:flex;gap:20px;align-items:flex-end}
+.ex-head .t1{font-size:13px;opacity:.85;letter-spacing:.2px}
+.ex-head h1{font-size:30px;line-height:1.15;margin:4px 0 8px;font-weight:700}
+.ex-head .proj{font-size:13px;opacity:.9;line-height:1.5}
+.ex-head .meta{margin-left:auto;text-align:right;font-size:12.5px;line-height:1.6;opacity:.92;white-space:nowrap}
+.ex-head .meta b{display:block;font-size:15px}
+.ex-body{padding:22px 32px 8px}
+.ex-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
+.ex-kpi{border-radius:12px;padding:14px 14px 12px;background:#F4F8F3;border:1px solid #DCE8DA;position:relative;overflow:hidden}
+.ex-kpi .ic{font-size:20px;line-height:1}
+.ex-kpi .v{font-size:27px;font-weight:700;line-height:1.15;margin-top:6px;color:#1D3A26}
+.ex-kpi .l{font-size:12.5px;color:#4A5D4F;line-height:1.3}
+.ex-kpi .s{font-size:11.5px;color:#6B7B6F;margin-top:4px}
+.ex-kpi.warn{background:#FFF6E3;border-color:#F0D9A6}.ex-kpi.bad{background:#FCEBE8;border-color:#F0C2BB}
+.ex-kpi .bar{height:5px;border-radius:3px;background:#DCE8DA;margin-top:8px;overflow:hidden}
+.ex-kpi .bar span{display:block;height:100%;background:#2F6B3A;border-radius:3px}
+.ex-row{display:grid;gap:16px;margin-bottom:16px}
+.ex-row.c2{grid-template-columns:1fr 1fr}
+.ex-row.c21{grid-template-columns:1.35fr 1fr}
+.ex-card{border:1px solid #DCE8DA;border-radius:12px;padding:14px 16px;background:#fff}
+.ex-card h3{font-size:15px;margin:0 0 2px;color:#1D3A26;display:flex;align-items:center;gap:8px}
+.ex-card h3 .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#2F6B3A;color:#fff;font-size:12px}
+.ex-card .sub{font-size:12px;color:#6B7B6F;margin:0 0 10px}
+.ex-funnel .st{display:grid;grid-template-columns:150px 1fr 70px;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+.ex-funnel .tr{height:20px;background:#EEF3EE;border-radius:6px;overflow:hidden}
+.ex-funnel .tr span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#2F6B3A,#4E8F58)}
+.ex-funnel .pc{text-align:right;font-weight:600}
+.ex-funnel .pc small{display:block;font-weight:400;color:#6B7B6F;font-size:11px}
+.ex-ins{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.ex-ins ul{margin:6px 0 0;padding:0;list-style:none}
+.ex-ins li{position:relative;padding:6px 0 6px 26px;font-size:13.2px;line-height:1.5;border-bottom:1px dashed #E3EAE2}
+.ex-ins li:last-child{border-bottom:0}
+.ex-ins li i{position:absolute;left:0;top:6px;font-style:normal}
+.ex-ins .act{background:#F4F8F3}
+.ex-tbl{width:100%;border-collapse:collapse;font-size:12.6px}
+.ex-tbl th{background:#2F6B3A;color:#fff;font-weight:600;padding:7px 8px;text-align:left}
+.ex-tbl th.num,.ex-tbl td.num{text-align:right}
+.ex-tbl td{padding:6px 8px;border-bottom:1px solid #E6ECE6}
+.ex-tbl tr:nth-child(even) td{background:#F8FBF7}
+.ex-tbl .mini{display:inline-block;height:8px;border-radius:4px;background:#4E8F58;vertical-align:middle;margin-right:6px}
+.ex-soilbar{display:flex;height:16px;border-radius:5px;overflow:hidden;min-width:120px}
+.ex-soilbar span{display:block;height:100%}
+.ex-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:#4A5D4F;margin-top:8px}
+.ex-legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.ex-foot{background:#1D3A26;color:#CFE0CF;font-size:11.5px;line-height:1.6;padding:12px 32px;display:flex;justify-content:space-between;gap:16px}
+.ex-foot b{color:#fff}
+.ex-note{font-size:11.5px;color:#6B7B6F;margin:-6px 0 14px}
+@media print{.top,nav.tabs,.exec-bar{display:none!important}main{padding:0}.paper{border:0;width:auto}}
+</style>
+</head>
+<body>
+<div id="loginView" class="login">
+  <form id="loginForm" autocomplete="on">
+    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="22" fill="#E3EEE2"/><path d="M22 34V17" stroke="#2F6B3A" stroke-width="2.4" stroke-linecap="round"/><path d="M22 20c-6-1-9-5-9-9 5 0 8 3 9 9zm0 0c6-1 9-5 9-9-5 0-8 3-9 9zm0 6c-5 0-8-3-9-6 4-1 7 1 9 6zm0 0c5 0 8-3 9-6-4-1-7 1-9 6z" fill="#2F6B3A"/></svg>
+    <h1>ติดตามท่อนพันธุ์มันสำปะหลังต้านทานโรคใบด่าง</h1>
+    <p class="small" style="margin:0;color:var(--leaf);font-weight:600">โครงการสนับสนุนท่อนพันธุ์มันสำปะหลังคุณภาพดีของกรมการค้าภายใน ประจำปี 2569</p>
+    <p class="muted small" style="margin:0">สมาคมชาวไร่มันสำปะหลังแห่งประเทศไทย ร่วมกับ สำนักงานเกษตรจังหวัดกำแพงเพชร · สำหรับเจ้าหน้าที่</p>
+    <label class="form"><span class="small muted">ชื่อผู้ใช้</span><input class="inp" id="lgUser" required autocomplete="username"></label>
+    <label class="form"><span class="small muted">PIN 6 หลัก</span><input class="inp" id="lgPin" type="password" inputmode="numeric" maxlength="6" required autocomplete="current-password"></label>
+    <button class="btn pri" type="submit">เข้าสู่ระบบ</button>
+    <p id="lgErr" class="small" style="color:var(--red);margin:0"></p>
+  </form>
+</div>
+
+<div id="appView" class="hidden">
+  <header class="top">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="22" fill="#2F6B3A"/><path d="M22 34V17" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M22 20c-6-1-9-5-9-9 5 0 8 3 9 9zm0 0c6-1 9-5 9-9-5 0-8 3-9 9z" fill="#fff"/></svg>
+      <div><b>ติดตามท่อนพันธุ์มันต้านทานใบด่าง จ.กำแพงเพชร</b><span>โครงการสนับสนุนท่อนพันธุ์มันสำปะหลังคุณภาพดี กรมการค้าภายใน ปี 2569 · สมาคมชาวไร่มันสำปะหลังฯ</span></div>
+    </div>
+    <select id="fRound" aria-label="รอบจัดส่งในจังหวัด"><option value="">ทุกรอบจัดส่ง</option></select>
+    <select id="fDistrict" aria-label="อำเภอ"><option value="">ทุกอำเภอ</option></select>
+    <span class="who" id="who"></span>
+    <button id="btnLogout">ออกจากระบบ</button>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-v="dash" class="on">ภาพรวม</button>
+    <button data-v="map">แผนที่แปลง</button>
+    <button data-v="exec">รายงานผู้บริหาร</button>
+    <button data-v="farmers">เกษตรกร</button>
+    <button data-v="reports">ตรวจรายงาน <span class="badge hidden" id="bVerify"></span></button>
+    <button data-v="pending">คิวลงทะเบียน LINE <span class="badge hidden" id="bPending"></span></button>
+    <button data-v="import" data-role="manager">นำเข้าไฟล์สมาคม</button>
+    <button data-v="settings">ตั้งค่า</button>
+  </nav>
+  <main>
+    <!-- ภาพรวม -->
+    <section class="view on" id="v-dash">
+      <div id="dashBody"><div class="loading">กำลังโหลดข้อมูล…</div></div>
+    </section>
+
+    <!-- แผนที่แปลง -->
+    <section class="view" id="v-map">
+      <div class="panel">
+        <div class="panel-head"><h2>แผนที่แปลงเกษตรกร จังหวัดกำแพงเพชร</h2><span class="muted small" id="mapInfo"></span><span class="spacer"></span>
+          <input class="inp" id="mapSearch" list="mapSearchList" placeholder="ค้นหา ตำบล / อำเภอ / ชื่อเกษตรกร" style="width:min(300px,100%)"><datalist id="mapSearchList"></datalist>
+          <button class="btn" id="mapFit">ดูทั้งจังหวัด</button>
+        </div>
+        <div class="map-tools">
+          <label class="ck"><input type="checkbox" id="mlProv" checked> ขอบเขตจังหวัด</label>
+          <label class="ck"><input type="checkbox" id="mlAmp" checked> ขอบเขตอำเภอ</label>
+          <label class="ck"><input type="checkbox" id="mlTam" checked> ขอบเขตตำบล</label>
+          <label class="ck"><input type="checkbox" id="mlTamLbl" checked> ชื่อตำบล</label>
+          <label class="ck"><input type="checkbox" id="mlPts" checked> แปลงเกษตรกร</label>
+          <select class="inp" id="mlPtFilter" aria-label="แสดงแปลง">
+            <option value="">ทุกแปลง</option><option value="actual">เฉพาะพิกัดแปลงจริง</option><option value="pred">เฉพาะพิกัดตอนสมัคร</option>
+            <option value="late">เลยกำหนดส่ง</option><option value="cmd">พบ/สงสัยใบด่าง</option></select>
+          <label class="ck soil-ck"><input type="checkbox" id="mlSoil"> ความเหมาะสมของดินปลูกมันสำปะหลัง</label>
+          <label class="ck small" id="mlSoilOpWrap" style="display:none">ความทึบ <input type="range" id="mlSoilOp" min="20" max="100" value="65" style="width:90px;vertical-align:middle"></label>
+          <select class="inp" id="mlShade" aria-label="ระบายสีอำเภอ">
+            <option value="">ไม่ระบายสีอำเภอ</option><option value="farmers">ระบายสีตามจำนวนเกษตรกร</option><option value="s1">ระบายสีตาม % แจ้งปลูกแล้ว</option></select>
+        </div>
+        <div id="bigMap"></div>
+        <p class="small muted" style="margin:8px 0 0">คลิกพื้นที่ตำบลเพื่อดูจำนวนแปลงในตำบล · คลิกจุดแปลงเพื่อดูรายละเอียดเกษตรกร · เปิดชั้นความเหมาะสมของดินแล้วคลิกจุดใดก็ได้เพื่อดูคำแนะนำการปลูก · ขอบเขตการปกครอง: OpenGISData-Thailand · ความเหมาะสมของดิน: กรมพัฒนาที่ดิน (Agri-Map)</p>
+      </div>
+    </section>
+
+    <!-- รายงานผู้บริหาร (v1.3) -->
+    <section class="view" id="v-exec">
+      <div class="panel exec-bar">
+        <div class="panel-head"><h2>รายงานสรุปสำหรับผู้บริหาร</h2><span class="muted small">ขอบเขตตามตัวกรองรอบจัดส่ง/อำเภอด้านบน</span><span class="spacer"></span>
+          <button class="btn" id="exPdf" title="ไฟล์ PDF ขนาด A4 พร้อมพิมพ์">⬇ PDF</button>
+          <button class="btn" id="exPng" title="รูปภาพสำหรับแชร์ LINE/นำเสนอ">⬇ PNG</button>
+          <button class="btn" id="exXlsx" title="ตารางข้อมูลหลายแผ่นงาน">⬇ Excel</button>
+          <button class="btn" id="exCsv" title="สรุปรายอำเภอ">⬇ CSV</button>
+        </div>
+      </div>
+      <div id="execWrap"><div class="loading">กำลังโหลด…</div></div>
+    </section>
+
+    <!-- เกษตรกร -->
+    <section class="view" id="v-farmers">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>รายชื่อเกษตรกร</h2><span class="muted small" id="fCount"></span><span class="spacer"></span>
+          <input class="inp" id="fq" placeholder="ค้นหา ชื่อ / เลขบัตร / เบอร์ / ตำบล" style="width:min(320px,100%)">
+          <select class="inp" id="fSize" aria-label="จำนวนต่อหน้า"><option value="25">25 / หน้า</option><option value="50">50 / หน้า</option><option value="100">100 / หน้า</option><option value="200">200 / หน้า</option></select>
+          <button class="btn" id="btnExport" data-role="manager">ดาวน์โหลด CSV</button>
+          <button class="btn" id="btnMsg">ส่งข้อความถึงกลุ่มนี้</button>
+          <button class="btn" id="btnBulk" data-role="manager">แก้ไขแบบกลุ่ม</button>
+        </div>
+        <div class="chips" id="fChips">
+          <button class="chip on" data-f="">ทั้งหมด</button>
+          <button class="chip" data-f="overdue">เลยกำหนดส่ง</button>
+          <button class="chip" data-f="unlinked">ยังไม่ลงทะเบียน LINE</button>
+          <button class="chip" data-f="noDoae">ปลูกแล้วแต่ยังไม่ขึ้นทะเบียน</button>
+          <button class="chip" data-f="cmd">พบ/สงสัยใบด่าง</button>
+          <button class="chip" data-f="verify">มีรายงานรอตรวจ</button>
+          <button class="chip" data-f="flagged">ข้อมูลต้องแก้ไข</button>
+        </div>
+        <div class="tbl-wrap" style="margin-top:12px;max-height:70vh"><table id="fTable"></table></div>
+        <div class="pager" id="fPager"></div>
+      </div>
+    </section>
+
+    <!-- ตรวจรายงาน -->
+    <section class="view" id="v-reports">
+      <div class="panel">
+        <div class="panel-head"><h2>รายงานจากเกษตรกร</h2><span class="spacer"></span>
+          <select class="inp" id="rStatus"><option value="รอตรวจ">รอตรวจ</option><option value="">ทั้งหมด</option><option value="ผ่านอัตโนมัติ">ผ่านอัตโนมัติ</option><option value="ผ่าน">ผ่าน</option><option value="ต้องลงพื้นที่">ต้องลงพื้นที่</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select>
+          <select class="inp" id="rStage"><option value="">ทุกรอบรายงาน</option></select>
+        </div>
+        <p class="muted small" style="margin-top:-4px">ระบบตรวจพิกัด รูป และความสอดคล้องให้อัตโนมัติ รายการที่ขึ้นที่นี่คือรายการที่ระบบตั้งธงไว้ ลงพื้นที่เฉพาะรายที่จำเป็น</p>
+        <div id="rList" class="cards"></div>
+      </div>
+    </section>
+
+    <!-- คิวลงทะเบียน -->
+    <section class="view" id="v-pending">
+      <div class="panel"><div class="panel-head"><h2>เกษตรกรที่ระบบจับคู่รายชื่อไม่ได้</h2></div>
+        <p class="muted small" style="margin-top:-4px">มักเกิดจากเลขบัตรหรือเบอร์ในไฟล์สมาคมผิด เลือกชื่อที่ระบบแนะนำ หรือพิมพ์รหัสเกษตรกรเพื่อจับคู่ แล้วระบบจะแจ้งเกษตรกรทาง LINE ให้เอง</p>
+        <div id="pList"></div>
+      </div>
+    </section>
+
+    <!-- นำเข้า -->
+    <section class="view imp" id="v-import">
+      <div class="panel">
+        <div class="panel-head"><h2><span class="imp-step">1</span>เลือกไฟล์รายชื่อจากสมาคมชาวไร่มันสำปะหลังฯ</h2></div>
+        <label class="drop" id="drop"><input type="file" id="file" accept=".xlsx,.xls" hidden>
+          <svg class="drop-ico" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#2F6B3A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg>
+          <div class="drop-t">ลากไฟล์ Excel ของสมาคมมาวางที่นี่</div>
+          <div class="drop-s">รูปแบบ "แบบฟอร์มแจ้งข้อมูลเกษตรกร…" ตามที่สมาคมส่งมา (.xlsx หรือ .xls)</div>
+          <span class="btn pri lg pick">📂 เลือกไฟล์จากเครื่อง</span>
+          <div class="drop-s small" id="dropName"></div></label>
+      </div>
+      <div class="panel hidden" id="impMeta">
+        <div class="panel-head"><h2><span class="imp-step">2</span>ข้อมูลการส่งมอบ แล้วตรวจก่อนนำเข้า</h2></div>
+        <div>
+          <div class="form">
+            <label><span>รอบที่จัดส่งในจังหวัดกำแพงเพชร <b class="req">*</b></span><input class="inp" id="mProv" type="number" min="1" inputmode="numeric"></label>
+            <label><span>วันส่งมอบต้นพันธุ์ <b class="req">*</b> <small class="muted">(ใช้นับวันเตือน)</small></span><input class="inp" id="mDate" type="date"></label>
+            <label><span>สถานที่จัดส่ง <b class="req">*</b></span><input class="inp" id="mPlace" list="placeList" placeholder="เช่น สนง.เกษตรอำเภอเมืองกำแพงเพชร"><datalist id="placeList"></datalist></label>
+            <label>รอบของสมาคม (ตามไฟล์) <input class="inp" id="mRound" type="number" min="1"></label>
+            <label>ยอดลำรวมตามไฟล์ <input class="inp" id="mStalks" type="number"></label>
+            <label>อำเภอที่ส่งรายชื่อ <input class="inp" id="mOffice"></label>
+            <label>ศูนย์ที่ส่งพันธุ์ <input class="inp" id="mSource" list="centerList" placeholder="เช่น ศวพ.กำแพงเพชร"></label>
+            <label>ลำต่อไร่ที่ให้ในรอบนี้ <input class="inp" id="mPerRai" type="number" step="1" placeholder="คำนวณจากไฟล์"></label>
+            <label>หลักเกณฑ์การคืน/ขยายต่อ
+              <select class="inp" id="mRetMode"><option value="multiplier">เท่าของจำนวนลำที่ได้รับ</option><option value="perRai">ลำต่อไร่ที่ขอรับ</option></select></label>
+            <label id="mRetValLbl">ต้องคืนกี่เท่า <input class="inp" id="mRetVal" type="number" step="0.1"></label>
+            <div class="dup-note"><b>ถ้าพบเลขบัตรซ้ำกับรายเดิม</b><br>ระบบเสนอให้รายแถว: <span class="tag">A รับเพิ่มในแปลงเดิม</span><span class="tag root">B แปลงใหม่ต่างจุด</span><span class="tag amber">ข้าม</span> เลือกเปลี่ยนได้ในตารางตรวจข้อมูล</div>
+          </div>
+          <p class="muted" id="mNote" style="margin-top:14px"></p>
+          <div class="imp-actions"><button class="btn lg" id="btnPreview">🔍 ตรวจข้อมูลก่อนนำเข้า</button><button class="btn pri lg" id="btnCommit" disabled>✅ ยืนยันนำเข้า</button></div>
+          <div id="impResult" style="margin-top:14px"></div>
+        </div>
+      </div>
+      <div class="panel"><div class="panel-head"><h2>รอบที่นำเข้าแล้ว</h2></div><div class="tbl-wrap"><table id="roundTable"></table></div></div>
+    </section>
+
+    <!-- ตั้งค่า -->
+    <section class="view" id="v-settings">
+      <div class="grid2">
+        <div class="panel"><div class="panel-head"><h2>เปลี่ยน PIN ของฉัน</h2></div>
+          <div class="form"><label>PIN เดิม<input class="inp" id="pinOld" type="password" inputmode="numeric" maxlength="6"></label>
+          <label>PIN ใหม่ 6 หลัก<input class="inp" id="pinNew" type="password" inputmode="numeric" maxlength="6"></label></div>
+          <div class="row" style="margin-top:10px"><button class="btn pri" id="btnPin">บันทึก PIN</button></div>
+        </div>
+        <div class="panel"><div class="panel-head"><h2>LINE OA</h2></div>
+          <p id="quota" class="muted">โควตาข้อความเดือนนี้: —</p>
+          <div class="row admin-only"><button class="btn" id="btnRemind">ส่งแจ้งเตือนตอนนี้</button></div>
+          <p class="small muted">ระบบส่งเตือนอัตโนมัติทุกวัน 08:00 น. เฉพาะคนที่ถึงกำหนดและยังไม่ส่ง ข้อความตอบกลับในแชทไม่เสียโควตา</p>
+        </div>
+      </div>
+      <div class="panel" data-role="manager"><div class="panel-head"><h2>ส่งข้อมูลไปยังระบบติดตามแปลงและการสนับสนุนท่อนพันธุ์ จ.กำแพงเพชร</h2><span class="spacer"></span><button class="btn pri" id="btnSync">ส่งข้อมูลตอนนี้</button></div>
+        <p class="small muted" style="margin-top:-4px">ระบบส่งเกษตรกร แปลง รายงานการเจริญเติบโต ใบด่าง การคืน/ขยายพันธุ์ และผลผลิต เข้าเป็นโครงการใหม่ในระบบติดตามแปลงของจังหวัด อัตโนมัติทุก 30 นาที และทันทีหลังนำเข้าไฟล์ ส่งเฉพาะรายการที่เพิ่มหรือเปลี่ยน ไม่แก้ข้อมูลเดิมของระบบนั้น</p>
+        <div id="syncBox" class="small muted">—</div></div>
+      <div class="panel admin-only"><div class="panel-head"><h2>ผู้ใช้งาน</h2><span class="spacer"></span><button class="btn" id="btnNewUser">เพิ่มผู้ใช้</button></div>
+        <p class="small muted" style="margin-top:-4px">officer เห็นเฉพาะอำเภอตัวเอง · manager เห็นทุกอำเภอและนำเข้าไฟล์ได้ · admin จัดการผู้ใช้และค่าระบบ · ใส่ LINE userId (ให้เจ้าหน้าที่พิมพ์ myid ในแชท OA) เพื่อรับแจ้งเตือนพบใบด่างและสรุปรายสัปดาห์</p>
+        <div class="tbl-wrap"><table id="userTable"></table></div></div>
+      <div class="panel admin-only"><div class="panel-head"><h2>ค่าระบบ</h2></div><div class="tbl-wrap"><table id="cfgTable"></table></div></div>
+      <div class="panel"><div class="panel-head"><h2>ประวัติการแจ้งเตือนล่าสุด</h2></div><div class="tbl-wrap" style="max-height:360px"><table id="remTable"></table></div></div>
+    </section>
+  </main>
+</div>
+<div id="drawer" class="hidden"><div class="drawer-bg" data-close></div><div class="drawer" role="dialog" aria-modal="true"><div class="dh"><h2 id="dTitle" style="flex:1"></h2><button class="btn" data-close>ปิด</button></div><div class="db" id="dBody"></div></div></div>
+<script>
+/* ============ สถานะแอป ============ */
+var S={token:null,user:null,districts:[],stages:[],farmers:[],filter:'',dash:null,parsed:null,preview:null,charts:{},map:null};
+var STAGE_SHORT={S1:'ปลูก+พิกัด',S2:'4 เดือน',S3:'8 เดือน',S4:'คืน/ขยาย'};
+function $(s,r){return (r||document).querySelector(s);} function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function num(n,d){return n==null||n===''?'–':Number(n).toLocaleString('th-TH',{maximumFractionDigits:d==null?0:d});}
+function pct(a,b){return b?Math.round(a*100/b):0;}
+function thDate(v){if(!v)return '–';var d=new Date(v);if(isNaN(d))return esc(v);return d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});}
+function thDT(v){if(!v)return '–';var d=new Date(v);return isNaN(d)?esc(v):d.toLocaleString('th-TH',{day:'numeric',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function isoDate(v){if(!v)return '';var d=new Date(v);if(isNaN(d))return '';var t=new Date(d.getTime()-d.getTimezoneOffset()*60000);return t.toISOString().slice(0,10);}
+function toast(msg,err){var t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},err?6000:3000);}
+function store(k,v){try{if(v===undefined)return sessionStorage.getItem(k);if(v===null)sessionStorage.removeItem(k);else sessionStorage.setItem(k,v);}catch(e){return null;}}
+function lv(l){return l==='red'?'var(--red)':l==='amber'?'var(--amber)':'var(--leaf)';}
+
+function api(action,payload){
+  return new Promise(function(res,rej){
+    google.script.run.withSuccessHandler(res).withFailureHandler(function(e){
+      var m=(e&&e.message)||String(e);
+      if(m.indexOf('SESSION_EXPIRED')>-1){showLogin('หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่');}
+      rej(new Error(m.replace(/^Error:\s*/,'')));
+    }).api(S.token,action,payload||{});
+  });
+}
+function fail(e){toast(e.message||String(e),true);}
+
+/* ============ เข้าสู่ระบบ ============ */
+function showLogin(msg){$('#appView').classList.add('hidden');$('#loginView').classList.remove('hidden');$('#lgErr').textContent=msg||'';store('tk',null);}
+$('#loginForm').addEventListener('submit',function(ev){
+  ev.preventDefault();$('#lgErr').textContent='กำลังตรวจสอบ…';
+  google.script.run.withSuccessHandler(function(r){store('tk',r.token);store('us',JSON.stringify(r));start(r);})
+    .withFailureHandler(function(e){$('#lgErr').textContent=e.message;}).login($('#lgUser').value,$('#lgPin').value);
+});
+$('#btnLogout').onclick=function(){google.script.run.logout(S.token);showLogin();};
+
+function start(r){
+  S.token=r.token;S.user=r.user;S.districts=r.districts;S.stages=r.stages;
+  $('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');
+  $('#who').textContent=r.user.fullName+' · '+({admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',officer:'เจ้าหน้าที่ อ.'+r.user.district,viewer:'ผู้ดู',center:(r.user.center||'หน่วยงานสนับสนุนพันธุ์')}[r.user.role]||r.user.role);
+  var fd=$('#fDistrict');fd.innerHTML='<option value="">ทุกอำเภอ</option>'+S.districts.map(function(d){return '<option>'+esc(d)+'</option>';}).join('');
+  if(r.user.role==='officer'){fd.value=r.user.district;fd.disabled=true;}
+  $('#rStage').innerHTML='<option value="">ทุกรอบรายงาน</option>'+S.stages.map(function(s){return '<option value="'+s.code+'">'+esc(s.name)+'</option>';}).join('')+'<option value="REG">แจ้งขึ้นทะเบียน</option>';
+  var lvl={viewer:1,center:1,officer:2,manager:3,admin:4}[r.user.role]||1;
+  $$('[data-role="manager"]').forEach(function(b){b.classList.toggle('hidden',lvl<3);});
+  $$('.admin-only').forEach(function(b){b.classList.toggle('hidden',lvl<4);});
+  loadRounds();show('dash');
+}
+(function(){var t=store('tk'),u=store('us');if(t&&u){try{var r=JSON.parse(u);r.token=t;start(r);}catch(e){}}})();
+
+/* ============ แท็บ ============ */
+$$('#tabs button').forEach(function(b){b.onclick=function(){show(b.dataset.v);};});
+function show(v){
+  $$('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v);});
+  $$('section.view').forEach(function(s){s.classList.toggle('on',s.id==='v-'+v);});
+  ({dash:loadDash,map:loadMap,exec:loadExec,farmers:loadFarmers,reports:loadReports,pending:loadPending,import:loadRoundTable,settings:loadSettings}[v]||function(){})();
+}
+$('#fRound').onchange=$('#fDistrict').onchange=function(){var v=$('#tabs .on').dataset.v;show(v);};
+function filt(){return {provinceRound:$('#fRound').value,district:$('#fDistrict').value};}
+function loadRounds(){return api('rounds').then(function(rs){
+  S.rounds=rs;var cur=$('#fRound').value,nos={};
+  rs.forEach(function(r){if(r.provinceRound){nos[r.provinceRound]=nos[r.provinceRound]||[];if(r.deliveryPlace&&nos[r.provinceRound].indexOf(r.deliveryPlace)<0)nos[r.provinceRound].push(r.deliveryPlace);}});
+  $('#fRound').innerHTML='<option value="">ทุกรอบจัดส่ง</option>'+Object.keys(nos).sort(function(a,b){return a-b;}).map(function(n){var pl=nos[n].join(', ');return '<option value="'+n+'">รอบจัดส่งที่ '+n+(pl?' · '+esc(pl.length>28?pl.slice(0,28)+'…':pl):'')+'</option>';}).join('');
+  $('#fRound').value=cur;
+  var places={};rs.forEach(function(r){if(r.deliveryPlace)places[r.deliveryPlace]=1;});
+  $('#placeList').innerHTML=Object.keys(places).map(function(p){return '<option value="'+esc(p)+'">';}).join('');
+}).catch(function(){});}
+function nextProvRound(){return (S.rounds||[]).reduce(function(m,r){return Math.max(m,Number(r.provinceRound)||0);},0)+1;}
+
+/* ============ ภาพรวม ============ */
+function loadDash(){
+  $('#dashBody').innerHTML='<div class="loading">กำลังคำนวณภาพรวม…</div>';
+  api('dashboard',filt()).then(function(d){S.dash=d;renderDash(d);}).catch(fail);
+}
+function renderDash(d){
+  var k=d.kpi,F=k.farmers||0;
+  var badge=function(id,n){var b=$(id);b.textContent=n;b.classList.toggle('hidden',!n);};
+  badge('#bVerify',k.pendingVerify);badge('#bPending',d.pendingQueue);
+  if(!F){$('#dashBody').innerHTML='<div class="empty">ยังไม่มีข้อมูลเกษตรกร เริ่มจากแท็บ "นำเข้าไฟล์สมาคม"</div>';return;}
+  var steps=[['รับพันธุ์',F,F],['ลงทะเบียน LINE',k.linked,F],['แจ้งปลูก + พิกัด',k.s1,F],['ขึ้นทะเบียนเกษตรกร (ยืนยันแล้ว)',k.doaeOk+' / '+k.doae,F,k.doaeOk],['ติดตาม 4 / 8 เดือน',k.s2+' / '+k.s3,F,k.s2],['ส่งคืน/ขยาย (ลำ)',num(k.returned),k.returnTarget,k.returned]];
+  var h='';
+  h+='<div class="kpis">'+
+    kpi(num(k.persons||F),'เกษตรกร (ราย)',num(k.plots||F)+' แปลง · '+num(k.rai,1)+' ไร่')+
+    kpi(num(k.stalks),'ท่อนพันธุ์ที่แจก (ลำ)','ต้องคืน '+num(k.returnTarget)+' ลำ')+
+    kpi(pct(k.s1,F)+'%','แจ้งปลูกพร้อมพิกัดแล้ว',num(k.s1)+' ราย')+
+    kpi(num(k.overdue),'เลยกำหนดส่ง (ราย)','',k.overdue?'warn':'')+
+    kpi(num(k.cmd),'แจ้งพบใบด่าง (ราย)','สงสัย '+num(k.suspect)+' ราย',k.cmd?'bad':'')+
+    kpi(num(k.pendingVerify),'รายงานรอตรวจ','คิว LINE '+num(d.pendingQueue))+'</div>';
+  h+='<div class="panel"><div class="panel-head"><h2>เส้นทางของท่อนพันธุ์</h2><span class="muted small">จากวันรับพันธุ์จนส่งคืนขยายต่อ</span></div><div class="funnel">'+
+    steps.map(function(s){var v=s[3]!=null?s[3]:s[1];var p=pct(v,s[2]);return '<div class="step"><div class="n">'+(typeof s[1]==='number'?num(s[1]):s[1])+'</div><div class="t">'+s[0]+'</div><div class="bar"><span style="width:'+Math.min(100,p)+'%"></span></div><div class="small muted">'+p+'%</div></div>';}).join('')+'</div></div>';
+  h+='<div class="grid2"><div class="panel"><div class="panel-head"><h2>แผนที่แปลง</h2><span class="spacer"></span><span class="small muted">'+num(d.points.length)+' แปลง</span></div><div id="map"></div>'+
+     '<div class="legend"><span><i class="dot" style="background:var(--leaf)"></i>ปกติ</span><span><i class="dot" style="background:var(--amber)"></i>เลยกำหนด</span><span><i class="dot" style="background:var(--red)"></i>ใบด่าง/เลยกำหนดนาน</span><span><i class="dot" style="background:#fff;border:2px dashed #777"></i>พิกัดตอนสมัคร (ยังไม่ยืนยัน)</span></div></div>'+
+     '<div class="panel"><div class="panel-head"><h2>รายอำเภอ</h2></div><div class="tbl-wrap"><table><thead><tr><th>อำเภอ</th><th class="num">ราย</th><th class="num">LINE</th><th>แจ้งปลูก</th><th class="num">เลยกำหนด</th><th class="num">ใบด่าง</th><th class="num" title="ร้อยละรายที่ข้อมูลไม่มีธงผิดพลาด">ข้อมูลครบ</th><th class="num" title="วันเฉลี่ยจากเกษตรกรส่ง ถึงเจ้าหน้าที่ตรวจ (เฉพาะรายงานที่ตั้งธง)">ตรวจเฉลี่ย</th></tr></thead><tbody>'+
+     d.byDistrict.map(function(x){var p=pct(x.s1,x.farmers);return '<tr class="click" data-d="'+esc(x.district)+'"><td>'+esc(x.district)+'</td><td class="num">'+x.farmers+'</td><td class="num">'+pct(x.linked,x.farmers)+'%</td><td><div class="row" style="flex-wrap:nowrap"><div class="pbar" style="flex:1"><span style="width:'+p+'%"></span></div><span class="small">'+p+'%</span></div></td><td class="num">'+(x.overdue?'<span class="tag amber">'+x.overdue+'</span>':'0')+'</td><td class="num">'+(x.cmd?'<span class="tag red">'+x.cmd+'</span>':'0')+'</td><td class="num">'+x.quality+'%</td><td class="num">'+(x.sla==null?'–':x.sla+' วัน')+(x.oldestPending>7?' <span class="tag amber" title="มีรายงานค้างตรวจนานสุด">ค้าง '+x.oldestPending+' วัน</span>':'')+'</td></tr>';}).join('')+
+     '</tbody></table></div></div></div>';
+  h+='<div class="grid3">'+
+     '<div class="panel"><h3>ส่งรายงานแปลงหลังรับพันธุ์กี่วัน</h3><p class="small muted" style="margin:2px 0 8px">กำหนด 30 วัน · เฉลี่ย '+(d.s1Timing.avg==null?'–':d.s1Timing.avg+' วัน')+'</p><canvas id="cTiming" height="190"></canvas></div>'+
+     '<div class="panel"><h3>การงอก/การเจริญเติบโตล่าสุด</h3><p class="small muted" style="margin:2px 0 8px">จากคำตอบของเกษตรกร</p><canvas id="cGrowth" height="190"></canvas></div>'+
+     '<div class="panel"><h3>แปลงจริงห่างจากพิกัดตอนสมัคร</h3><p class="small muted" style="margin:2px 0 8px">ยืนยันว่าพิกัดตอนสมัครเป็นเพียงการคาดการณ์</p><canvas id="cMoved" height="190"></canvas></div></div>';
+  var o=d.outcome||{};
+  h+='<div class="panel"><div class="panel-head"><h2>ผลลัพธ์โครงการ</h2><span class="muted small">ใช้รายงานผลต่อกรมการค้าภายใน/สมาคม</span></div><div class="grid2"><div>'+
+     '<div class="kpis" style="margin-bottom:0">'+
+     kpi(o.survivalAvg==null?'–':Math.round(o.survivalAvg)+'%','อัตรารอดเฉลี่ย (4 เดือน)',num(o.survivalN)+' แปลงที่รายงาน')+
+     kpi(o.yieldAvg==null?'–':num(o.yieldAvg,2),'ผลผลิตเฉลี่ย (ตัน/ไร่)',o.yieldN?num(o.yieldN)+' แปลง · สูงสุด '+num(o.yieldMax,2):'ยังไม่มีการเก็บเกี่ยว')+
+     kpi(o.multiplier==null?'–':o.multiplier+' ราย','ส่งต่อพันธุ์ ต่อผู้ให้ 1 ราย',num(o.recipients)+' ผู้รับต่อ จาก '+num(o.givers)+' ราย')+
+     kpi(num(k.doaeOk),'ขึ้นทะเบียนที่เจ้าหน้าที่ยืนยัน','เกษตรกรแจ้ง '+num(k.doae)+' ราย')+'</div>'+
+     (o.returnedBy?'<div style="margin-top:14px"><h3>ท่อนพันธุ์ที่คืน/ขยายต่อแล้ว '+num(k.returned)+' / '+num(k.returnTarget)+' ลำ</h3><p class="small muted" style="margin:2px 0 8px">ครบเงื่อนไขแล้ว '+num(o.returnDone)+' ราย · ขยายปลูกเองเพิ่ม '+num(o.expandRai,1)+' ไร่</p><canvas id="cRet" height="90"></canvas></div>':'')+'</div>'+
+     '<div><h3>ปลูกหลังรับพันธุ์กี่วัน</h3><p class="small muted" style="margin:2px 0 8px">ท่อนพันธุ์ควรปลูกภายใน 7–15 วัน</p><canvas id="cDelay" height="160"></canvas></div></div></div>';
+  h+='<div class="grid2"><div class="panel"><div class="panel-head"><h2>เลยกำหนดส่ง</h2><span class="muted small">โทรตามเฉพาะรายชื่อนี้</span></div>'+
+     (d.overdue.length?'<div class="tbl-wrap" style="max-height:360px"><table><thead><tr><th>เกษตรกร</th><th>ตำบล / อำเภอ</th><th>ค้างรอบ</th><th>โทร</th></tr></thead><tbody>'+
+      d.overdue.map(function(o){return '<tr class="click" data-f="'+esc(o.farmerId)+'"><td>'+esc(o.name)+(o.linked?'':' <span class="tag amber">ไม่มี LINE</span>')+'</td><td>'+esc(o.tambon)+' / '+esc(o.district)+'</td><td>'+esc(o.stage)+'</td><td>'+(o.phone?'<a href="tel:'+esc(o.phone)+'">'+esc(o.phone)+'</a>':'–')+'</td></tr>';}).join('')+'</tbody></table></div>':'<div class="empty">ไม่มีรายการเลยกำหนด</div>')+'</div>'+
+     '<div class="panel"><div class="panel-head"><h2>แจ้งพบ/สงสัยใบด่าง</h2></div>'+
+     (d.cmd.length?d.cmd.map(function(c){return '<div class="row click" data-f="'+esc(c.farmerId)+'" style="padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer">'+(c.photo?'<img data-ph="'+esc(c.photo)+'" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:6px;background:#E3EEE2">':'')+'<div style="flex:1"><b>'+esc(c.name)+'</b><div class="small muted">ต.'+esc(c.tambon)+' อ.'+esc(c.district)+'</div></div><span class="tag '+(c.cmd==='พบใบด่าง'?'red':'amber')+'">'+esc(c.cmd)+'</span></div>';}).join(''):'<div class="empty">ยังไม่มีรายงานพบใบด่าง</div>')+'</div></div>';
+  h+='<div class="panel"><div class="panel-head"><h2>เปรียบเทียบรายรอบจัดส่ง</h2></div><div class="tbl-wrap"><table><thead><tr><th>รอบจัดส่ง</th><th>วันส่งมอบ</th><th>สถานที่</th><th class="num">ลำ/ไร่</th><th class="num">ลำ</th><th class="num">คืน/ขยายแล้ว</th><th class="num">ราย</th><th class="num">ลงทะเบียน LINE</th><th class="num">แจ้งปลูกแล้ว</th><th class="num">เลยกำหนด</th></tr></thead><tbody>'+
+     d.byRound.map(function(r){return '<tr><td>'+(r.provinceRound?'ที่ '+esc(r.provinceRound):'–')+' <span class="small muted">(สมาคม '+esc(r.roundNo)+')</span></td><td>'+thDate(r.receiveDate)+'</td><td>'+esc(r.deliveryPlace||'–')+'</td><td class="num">'+(r.rai?num(r.stalks/r.rai):'–')+'</td><td class="num">'+num(r.stalks)+'</td><td class="num">'+pct(r.returned,r.returnTarget)+'%</td><td class="num">'+r.farmers+'</td><td class="num">'+pct(r.linked,r.farmers)+'%</td><td class="num">'+pct(r.s1,r.farmers)+'%</td><td class="num">'+r.overdue+'</td></tr>';}).join('')+'</tbody></table></div>'+
+     '<p class="small muted">คำนวณเมื่อ '+thDT(d.generatedAt)+' · ช่องทางรายงาน: LINE '+num(d.channel.line||0)+' · เจ้าหน้าที่บันทึกแทน '+num(d.channel.officer||0)+'</p></div>';
+  $('#dashBody').innerHTML=h;
+  $$('#dashBody [data-f]').forEach(function(el){el.onclick=function(){openFarmer(el.dataset.f);};});
+  $$('#dashBody tr[data-d]').forEach(function(el){el.onclick=function(){if(S.user.role!=='officer'){$('#fDistrict').value=el.dataset.d;loadDash();}};});
+  drawMap(d.points);drawCharts(d);loadPhotos($('#dashBody'));
+}
+function kpi(v,l,s,cls){return '<div class="kpi '+(cls||'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':'')+'</div>';}
+function drawMap(pts){
+  if(S.map){S.map.remove();S.map=null;}
+  var m=L.map('map',{scrollWheelZoom:false}).setView([16.3,99.6],9);S.map=m;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(m);
+  var b=[];
+  pts.forEach(function(p){
+    var c=p.lv==='red'?'#B83227':p.lv==='amber'?'#B97B0C':'#2F6B3A';
+    var mk=L.circleMarker([p.lat,p.lon],{radius:p.actual?7:5,color:p.actual?'#fff':c,weight:p.actual?1.5:2,dashArray:p.actual?null:'3',fillColor:p.actual?c:'#fff',fillOpacity:p.actual?.9:.6}).addTo(m);
+    mk.bindPopup('<b>'+esc(p.n)+'</b><br>ต.'+esc(p.t)+' อ.'+esc(p.d)+'<br>'+(p.actual?'พิกัดแปลงจริง':'พิกัดตอนสมัคร')+(p.cmd?'<br>ใบด่าง: '+esc(p.cmd):'')+'<br><a href="#" onclick="openFarmer(\''+esc(p.id)+'\');return false">ดูรายละเอียด</a>');
+    b.push([p.lat,p.lon]);
+  });
+  if(b.length)m.fitBounds(b,{padding:[20,20],maxZoom:12});
+}
+function chart(id,cfg){if(S.charts[id])S.charts[id].destroy();var el=document.getElementById(id);if(el)S.charts[id]=new Chart(el,cfg);}
+function drawCharts(d){
+  Chart.defaults.font.family="'IBM Plex Sans Thai',sans-serif";Chart.defaults.color='#5E6E62';
+  var base={plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6ECE6'}},x:{grid:{display:false}}}};
+  chart('cTiming',{type:'bar',data:{labels:d.s1Timing.labels,datasets:[{data:d.s1Timing.values,backgroundColor:['#2F6B3A','#4E8F58','#B97B0C','#C98A12','#B83227']}]},options:base});
+  var gl=Object.keys(d.growth);var gc={'งอกดี โตดี':'#2F6B3A','ดีมาก':'#2F6B3A','งอกบางส่วน':'#8DB78F','ปานกลาง':'#8DB78F','งอกไม่ดี/ตาย':'#B83227','ไม่ดี':'#B83227','ยังไม่ได้ปลูก':'#B9C7BA'};
+  chart('cGrowth',{type:'bar',data:{labels:gl,datasets:[{data:gl.map(function(k){return d.growth[k];}),backgroundColor:gl.map(function(k){return gc[k]||'#8B5E34';})}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6ECE6'}},y:{grid:{display:false}}}}});
+  if(d.outcome&&d.outcome.returnedBy){var rb=d.outcome.returnedBy;chart('cRet',{type:'bar',data:{labels:['ขยายปลูกเอง','แบ่งเกษตรกรในชุมชน','คืนหน่วยงาน/สมาคม'],datasets:[{data:[rb.self,rb.community,rb.agency],backgroundColor:['#2F6B3A','#4E8F58','#8B5E34']}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{grid:{display:false}}}}});}
+  if(d.outcome)chart('cDelay',{type:'bar',data:{labels:d.outcome.plantDelay.labels,datasets:[{data:d.outcome.plantDelay.values,backgroundColor:['#2F6B3A','#4E8F58','#B97B0C','#B83227']}]},options:base});
+  chart('cMoved',{type:'bar',data:{labels:d.moved.labels,datasets:[{data:d.moved.values,backgroundColor:'#8B5E34'}]},options:base});
+}
+
+/* ============ แผนที่แปลง + ขอบเขตจังหวัด/อำเภอ/ตำบล ============ */
+var MV={map:null,geo:null,ly:{},pts:[],tamCount:{}};
+function loadMap(){
+  $('#mapInfo').textContent='กำลังโหลดแผนที่…';
+  var jobs=[api('dashboard',filt())];
+  if(!MV.geo)jobs.push(api('boundaries'));
+  Promise.all(jobs).then(function(r){S.dash=r[0];if(r[1])MV.geo=r[1];drawBigMap();}).catch(function(e){$('#mapInfo').textContent='';fail(e);});
+}
+/* จุดอยู่ในรูปหลายเหลี่ยม (ray casting) — geometry แบบ GeoJSON [lon,lat] */
+function inRing(x,y,ring){var c=false;for(var i=0,j=ring.length-1;i<ring.length;j=i++){var xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
+function inGeom(lon,lat,g){var polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;return polys.some(function(p){if(!inRing(lon,lat,p[0]))return false;for(var h=1;h<p.length;h++)if(inRing(lon,lat,p[h]))return false;return true;});}
+/* จุดวางชื่อ: กึ่งกลางของวงนอกที่ใหญ่ที่สุด ขยับเข้าในพื้นที่ถ้าจำเป็น */
+function labelPoint(g){
+  var polys=g.type==='Polygon'?[g.coordinates]:g.coordinates,best=null,bestA=-1;
+  polys.forEach(function(p){var r=p[0],a=0;for(var i=0,j=r.length-1;i<r.length;j=i++)a+=(r[j][0]+r[i][0])*(r[j][1]-r[i][1]);a=Math.abs(a);if(a>bestA){bestA=a;best=r;}});
+  var cx=0,cy=0,A=0;for(var i=0,j=best.length-1;i<best.length;j=i++){var f=best[j][0]*best[i][1]-best[i][0]*best[j][1];cx+=(best[j][0]+best[i][0])*f;cy+=(best[j][1]+best[i][1])*f;A+=f;}
+  var pt=A?[cx/(3*A),cy/(3*A)]:best[0];
+  if(!inGeom(pt[0],pt[1],g)){var mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;best.forEach(function(q){mnx=Math.min(mnx,q[0]);mxx=Math.max(mxx,q[0]);mny=Math.min(mny,q[1]);mxy=Math.max(mxy,q[1]);});
+    for(var s=1;s<12&&!inGeom(pt[0],pt[1],g);s++)for(var k=0;k<24;k++){var t=[pt[0]+(mxx-mnx)*s/24*Math.cos(k*Math.PI/12),pt[1]+(mxy-mny)*s/24*Math.sin(k*Math.PI/12)];if(inGeom(t[0],t[1],g)){pt=t;break;}}}
+  return [pt[1],pt[0]];
+}
+function lvColor(p){return p.cmd==='พบใบด่าง'||p.lv==='red'?'#B83227':p.lv==='amber'?'#B97B0C':'#2F6B3A';}
+function buildMapBase(){
+  var m=L.map('bigMap',{preferCanvas:true,zoomSnap:0.5}).setView([16.3,99.6],9);MV.map=m;
+  var light=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16,attribution:'Tiles © Esri'}).addTo(m);
+  var osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'});
+  L.control.layers({'แผนที่เรียบ':light,'แผนที่ถนน (OSM)':osm,'ภาพถ่ายดาวเทียม':sat},null,{position:'topright'}).addTo(m);
+  L.control.scale({imperial:false}).addTo(m);
+  var lg=L.control({position:'bottomright'});
+  lg.onAdd=function(){var d=L.DomUtil.create('div','map-legend');d.innerHTML=
+    '<div><b class="ln" style="border-top:4px solid #1D3A26"></b>ขอบเขตจังหวัด</div><div><b class="ln" style="border-top:2.5px solid #2F6B3A"></b>ขอบเขตอำเภอ</div><div><b class="ln" style="border-top:1.5px dashed #6B7F70"></b>ขอบเขตตำบล</div>'+
+    '<div><i style="background:#2F6B3A"></i>ปกติ</div><div><i style="background:#B97B0C"></i>เลยกำหนดส่ง</div><div><i style="background:#B83227"></i>ใบด่าง/เลยกำหนดนาน</div><div><i style="background:#fff;border:2px dashed #555"></i>พิกัดตอนสมัคร (ยังไม่ยืนยัน)</div>';return d;};
+  lg.addTo(m);
+  var g=MV.geo;
+  // พื้นที่นอกจังหวัดทำให้จางลง
+  var holes=[];(g.province.geometry.type==='Polygon'?[g.province.geometry.coordinates]:g.province.geometry.coordinates).forEach(function(p){holes.push(p[0].map(function(c){return [c[1],c[0]];}));});
+  MV.ly.mask=L.polygon([[[-89,-179],[-89,179],[89,179],[89,-179]]].concat(holes),{stroke:false,fillColor:'#6E7C71',fillOpacity:.28,interactive:false}).addTo(m);
+  MV.ly.tam=L.geoJSON({type:'FeatureCollection',features:g.tambon},{style:{color:'#6B7F70',weight:1.2,dashArray:'4 4',fillColor:'#ffffff',fillOpacity:0.01},
+    onEachFeature:function(f,l){l.on('click',function(e){var c=MV.tamCount[f.properties.code]||{n:0,a:0};
+      var info='<b>ต.'+esc(f.properties.name)+'</b> อ.'+esc(f.properties.amphoe)+'<br>แปลงในตำบล: <b>'+c.n+'</b> แปลง'+(c.n?' (พิกัดจริง '+c.a+')':'');
+      if(MV.ly.soil&&m.hasLayer(MV.ly.soil)){if(e.originalEvent)e.originalEvent._soilDone=true;return soilPopup(e.latlng,info);}
+      L.popup().setLatLng(e.latlng).setContent(info).openOn(m);});
+      l.on('mouseover',function(){l.setStyle({weight:2.5,color:'#2F6B3A'});});l.on('mouseout',function(){MV.ly.tam.resetStyle(l);});}}).addTo(m);
+  MV.ly.amp=L.geoJSON({type:'FeatureCollection',features:g.amphoe},{interactive:false,style:ampStyle}).addTo(m);
+  MV.ly.prov=L.geoJSON(g.province,{interactive:false,style:{color:'#1D3A26',weight:4,fill:false}}).addTo(m);
+  MV.ly.ampLbl=L.layerGroup(g.amphoe.map(function(f){return L.marker(labelPoint(f.geometry),{interactive:false,keyboard:false,icon:L.divIcon({className:'lbl-amp',html:'อ.'+esc(f.properties.name),iconSize:[160,18],iconAnchor:[80,9]})});})).addTo(m);
+  MV.ly.tamLbl=L.layerGroup(g.tambon.map(function(f){return L.marker(labelPoint(f.geometry),{interactive:false,keyboard:false,icon:L.divIcon({className:'lbl-tam',html:esc(f.properties.name),iconSize:[120,14],iconAnchor:[60,7]})});}));
+  MV.ly.pts=L.layerGroup().addTo(m);
+  buildSoilLayer(m);
+  m.on('zoomend',syncMapLayers);
+  $$('#v-map .map-tools input').forEach(function(i){i.onchange=syncMapLayers;});
+  $('#mlPtFilter').onchange=drawMapPoints;
+  $('#mlShade').onchange=function(){MV.ly.amp.setStyle(ampStyle);};
+  $('#mapFit').onclick=function(){m.fitBounds(MV.ly.prov.getBounds(),{padding:[10,10]});};
+  $('#mapSearch').onchange=mapSearch;
+  $('#mapSearch').onkeydown=function(e){if(e.key==='Enter')mapSearch();};
+  m.fitBounds(MV.ly.prov.getBounds(),{padding:[10,10]});
+}
+function ampStyle(f){
+  var mode=$('#mlShade').value,base={color:'#2F6B3A',weight:2.5,fill:true,fillColor:'#2F6B3A',fillOpacity:0};
+  if(!mode||!S.dash)return base;
+  var rows=S.dash.byDistrict||[],row=rows.filter(function(x){return x.district===f.properties.name;})[0],v=0,max=1;
+  if(mode==='farmers'){rows.forEach(function(x){max=Math.max(max,x.farmers);});v=row?row.farmers/max:0;}
+  else v=row&&row.farmers?row.s1/row.farmers:0;
+  base.fillOpacity=row?0.08+0.5*v:0.02;base.fillColor=mode==='s1'?'#2F6B3A':'#8B5E34';return base;
+}
+function syncMapLayers(){
+  var m=MV.map;if(!m)return;
+  function tog(ly,on){if(on&&!m.hasLayer(ly))m.addLayer(ly);if(!on&&m.hasLayer(ly))m.removeLayer(ly);}
+  tog(MV.ly.prov,$('#mlProv').checked);tog(MV.ly.mask,$('#mlProv').checked);
+  tog(MV.ly.amp,$('#mlAmp').checked);tog(MV.ly.ampLbl,$('#mlAmp').checked);
+  tog(MV.ly.tam,$('#mlTam').checked);
+  tog(MV.ly.tamLbl,$('#mlTamLbl').checked&&m.getZoom()>=10.5);
+  tog(MV.ly.pts,$('#mlPts').checked);
+  if(MV.ly.pts&&m.hasLayer(MV.ly.pts))MV.ly.pts.eachLayer(function(l){l.bringToFront&&l.bringToFront();});
+}
+function drawMapPoints(){
+  var f=$('#mlPtFilter').value,m=MV.map;MV.ly.pts.clearLayers();
+  var pts=(S.dash.points||[]).filter(function(p){return !f||(f==='actual'&&p.actual)||(f==='pred'&&!p.actual)||(f==='late'&&p.lv!=='ok')||(f==='cmd'&&p.cmd);});
+  pts.forEach(function(p){
+    var c=lvColor(p);
+    var mk=L.circleMarker([p.lat,p.lon],{radius:p.actual?7:5.5,color:p.actual?'#fff':c,weight:p.actual?1.5:2,dashArray:p.actual?null:'3',fillColor:p.actual?c:'#fff',fillOpacity:p.actual?.92:.7});
+    mk.bindTooltip(esc(p.n),{direction:'top',offset:[0,-6]});
+    mk.bindPopup('<b>'+esc(p.n)+'</b><br>ต.'+esc(p.t)+' อ.'+esc(p.d)+'<br>'+(p.actual?'📍 พิกัดแปลงจริง':'พิกัดตอนสมัคร (ยังไม่ยืนยัน)')+(p.cmd?'<br>ใบด่าง: <b>'+esc(p.cmd)+'</b>':'')+soilLine(p.soil)+
+      '<br><a href="https://www.google.com/maps?q='+p.lat+','+p.lon+'" target="_blank">เปิดใน Google Maps ↗</a><br><a href="#" onclick="openFarmer(\''+esc(p.id)+'\');return false">ดูรายละเอียดเกษตรกร</a>');
+    MV.ly.pts.addLayer(mk);
+  });
+  var a=pts.filter(function(p){return p.actual;}).length;
+  $('#mapInfo').textContent='แสดง '+num(pts.length)+' แปลง · พิกัดจริง '+num(a)+' · พิกัดตอนสมัคร '+num(pts.length-a);
+  syncMapLayers();
+}
+function drawBigMap(){
+  if(!MV.map)buildMapBase();
+  setTimeout(function(){MV.map.invalidateSize();},50);
+  // นับแปลงรายตำบลด้วยพิกัด
+  MV.tamCount={};
+  (S.dash.points||[]).forEach(function(p){for(var i=0;i<MV.geo.tambon.length;i++){var t=MV.geo.tambon[i];if(inGeom(p.lon,p.lat,t.geometry)){var c=MV.tamCount[t.properties.code]=MV.tamCount[t.properties.code]||{n:0,a:0};c.n++;if(p.actual)c.a++;break;}}});
+  MV.ly.amp.setStyle(ampStyle);
+  drawMapPoints();
+  ensureSoilChecked();
+  $('#mapSearchList').innerHTML=MV.geo.amphoe.map(function(f){return '<option value="อ.'+esc(f.properties.name)+'">';}).join('')+
+    MV.geo.tambon.map(function(f){return '<option value="ต.'+esc(f.properties.name)+' อ.'+esc(f.properties.amphoe)+'">';}).join('')+
+    (S.dash.points||[]).slice(0,800).map(function(p){return '<option value="'+esc(p.n)+'">';}).join('');
+  var d=$('#fDistrict').value;
+  if(d){var af=MV.geo.amphoe.filter(function(f){return f.properties.name===d;})[0];if(af)MV.map.fitBounds(L.geoJSON(af).getBounds(),{padding:[10,10]});}
+}
+function mapSearch(){
+  var q=$('#mapSearch').value.trim();if(!q||!MV.map)return;
+  var mt=q.match(/^ต\.(\S+)(?:\s+อ\.(\S+))?/),ma=q.match(/^อ\.(\S+)/),f=null;
+  if(mt)f=MV.geo.tambon.filter(function(x){return x.properties.name===mt[1]&&(!mt[2]||x.properties.amphoe===mt[2]);})[0];
+  else if(ma)f=MV.geo.amphoe.filter(function(x){return x.properties.name===ma[1];})[0];
+  if(!f){var tn=MV.geo.tambon.filter(function(x){return x.properties.name===q;})[0],an=MV.geo.amphoe.filter(function(x){return x.properties.name===q;})[0];f=tn||an;}
+  if(f){MV.map.fitBounds(L.geoJSON(f).getBounds(),{padding:[20,20]});return;}
+  var p=(S.dash.points||[]).filter(function(x){return x.n.indexOf(q)>-1;})[0];
+  if(p){MV.map.setView([p.lat,p.lon],15);MV.ly.pts.eachLayer(function(l){var ll=l.getLatLng();if(ll.lat===p.lat&&ll.lng===p.lon)l.openPopup();});return;}
+  toast('ไม่พบ "'+q+'"',true);
+}
+</script>
+<script>
+/* ============ เกษตรกร ============ */
+var fTimer;
+$('#fq').oninput=function(){clearTimeout(fTimer);fTimer=setTimeout(function(){S.fPage=1;renderFarmers();},200);};
+$$('#fChips .chip').forEach(function(c){c.onclick=function(){$$('#fChips .chip').forEach(function(x){x.classList.remove('on');});c.classList.add('on');S.filter=c.dataset.f;loadFarmers();};});
+function loadFarmers(){
+  $('#fTable').innerHTML='<tr><td class="loading">กำลังโหลด…</td></tr>';
+  var p=filt();p.filter=S.filter;
+  api('farmers',p).then(function(list){S.farmers=list;S.fPage=1;renderFarmers();}).catch(fail);
+}
+function track(done){return '<span class="track" title="'+S.stages.map(function(s,i){return s.name+': '+(done[i]===1?'ส่งแล้ว':done[i]===-1?'เลยกำหนด':'ยังไม่ถึง/ยังไม่ส่ง');}).join('\n')+'">'+done.map(function(x,i){return (i?'<b class="'+(x===1?'d':'')+'"></b>':'')+'<i class="'+(x===1?'d':x===-1?'x':'')+'"></i>';}).join('')+'</span>';}
+function renderFarmers(){
+  var q=$('#fq').value.trim().toLowerCase();
+  var list=S.farmers.filter(function(f){return !q||(f.name+' '+f.citizenId+' '+f.phone+' '+f.farmerId+' '+f.tambon).toLowerCase().indexOf(q)>-1;});
+  $('#fCount').textContent=num(list.length)+' ราย';
+  if(!list.length){$('#fTable').innerHTML='<tr><td><div class="empty">ไม่พบรายชื่อตามเงื่อนไข</div></td></tr>';return;}
+  $('#fTable').innerHTML='<thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>ตำบล / อำเภอ</th><th>รอบจัดส่ง</th><th class="num">ไร่</th><th class="num">ลำ</th><th>LINE</th><th>ความคืบหน้า ('+S.stages.map(function(s){return STAGE_SHORT[s.code]||s.code;}).join(' → ')+')</th><th>ทะเบียน</th><th>ถัดไป</th><th>ข้อมูล</th></tr></thead><tbody>'+
+   list.slice(0,1500).map(function(f){var s=f.st;return '<tr class="click" data-f="'+esc(f.farmerId)+'"><td class="small">'+esc(f.farmerId)+'</td><td><span class="dot" style="background:'+lv(s.level)+'"></span>'+esc(f.name)+'</td><td>'+esc(f.tambon)+' / '+esc(f.respDistrict)+'</td><td class="small">'+(f.provinceRound?'ที่ '+esc(f.provinceRound):'–')+(f.deliveryPlace?'<br><span class="muted">'+esc(f.deliveryPlace)+'</span>':'')+'</td><td class="num">'+num(f.raiRequested,1)+'</td><td class="num">'+num(f.stalksReceived)+'</td><td>'+(f.linked?'<span class="tag">✓</span>':'<span class="tag amber">ยังไม่มี</span>')+'</td><td>'+track(s.done)+(s.cmd==='พบใบด่าง'?' <span class="tag red">ใบด่าง</span>':'')+'</td><td>'+(s.doaeOk?'<span class="tag">ยืนยันแล้ว</span>':s.doae?'<span class="tag amber">แจ้งแล้ว รอตรวจ</span>':'<span class="muted small">–</span>')+'</td><td class="small">'+esc(s.nextName)+(s.nextDue?'<br><span class="muted">ภายใน '+thDate(s.nextDue)+'</span>':'')+'</td><td>'+(f.flags?'<span class="tag amber" title="'+esc(f.flags)+'">'+f.flags.split(' | ').length+' จุด</span>':'')+(s.pendingVerify?'<span class="tag root">รอตรวจ '+s.pendingVerify+'</span>':'')+'</td></tr>';}).join('')+'</tbody>';
+  $$('#fTable tr[data-f]').forEach(function(r){r.onclick=function(){openFarmer(r.dataset.f);};});
+}
+$('#btnExport').onclick=function(){
+  var cols=[['farmerId','รหัส'],['roundNo','รอบ'],['name','ชื่อ-สกุล'],['citizenId','เลขบัตร'],['phone','โทร'],['tambon','ตำบล'],['respDistrict','อำเภอ'],['raiRequested','ไร่ที่ขอ'],['stalksReceived','ลำที่ได้รับ'],['returnTarget','ต้องคืน'],['provinceRound','รอบจัดส่ง จ.กพ.'],['receiveDate','วันส่งมอบ'],['deliveryPlace','สถานที่จัดส่ง']];
+  var rows=[cols.map(function(c){return c[1];}).concat(['LINE','แจ้งปลูก','4 เดือน','8 เดือน','คืนครบ','ขึ้นทะเบียน','ใบด่าง','ส่งคืนแล้ว(ลำ)','ละติจูดจริง','ลองจิจูดจริง','ถัดไป','ธงข้อมูล','ปลูกหลังรับ(วัน)','ต้นรอด(%)','ผลผลิต(ตัน/ไร่)','ผู้รับต่อ(ราย)'])];
+  S.farmers.forEach(function(f){var s=f.st;rows.push(cols.map(function(c){return c[0]==='receiveDate'?isoDate(f[c[0]]):f[c[0]];}).concat([f.linked?'มี':'ไม่มี'],s.done.map(function(x){return x===1?'ส่งแล้ว':x===-1?'เลยกำหนด':'';}),[s.doae?'แจ้งแล้ว':'',s.cmd,s.returned,s.lat,s.lon,s.nextName,f.flags,s.plantDelay,s.survival,s.yieldPerRai,s.recipients]));});
+  var csv='\ufeff'+rows.map(function(r){return r.map(function(v){v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':(/^\d{9,}$/.test(v)?'="'+v+'"':v);}).join(',');}).join('\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='เกษตรกร_ท่อนพันธุ์_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+};
+$('#btnMsg').onclick=function(){
+  var ids=S.farmers.filter(function(f){return f.linked;}).map(function(f){return f.farmerId;});
+  if(!ids.length)return toast('กลุ่มนี้ยังไม่มีใครลงทะเบียน LINE',true);
+  var t=prompt('ส่งข้อความถึง '+ids.length+' ราย ที่ลงทะเบียน LINE (ใช้โควตาข้อความ 1 ข้อความต่อบัญชี)\n\nพิมพ์ข้อความ:');
+  if(!t)return;api('sendMessage',{farmerIds:ids,text:t}).then(function(r){toast('ส่งแล้ว '+r.sent+' บัญชี');}).catch(fail);
+};
+
+$('#btnBulk').onclick=function(){
+  $('#drawer').classList.remove('hidden');$('#dTitle').textContent='แก้ไขแบบกลุ่ม';
+  $('#dBody').innerHTML='<div class="panel"><div class="form">'+
+    '<label>ช่องที่จะแก้<select class="inp" id="bkField"><option value="deliveryPlace">สถานที่จัดส่ง</option><option value="tambon">ตำบล</option><option value="respDistrict">อำเภอที่รับผิดชอบติดตาม</option><option value="variety">พันธุ์</option><option value="prefix">คำนำหน้า</option></select></label>'+
+    '<label>ค่าเดิม (ต้องตรงทุกตัวอักษร)<input class="inp" id="bkFrom" placeholder="เช่น น่าบ่อคำ"></label>'+
+    '<label>ค่าใหม่<input class="inp" id="bkTo" list="placeList" placeholder="เช่น นาบ่อคำ"></label></div>'+
+    '<p class="small muted">มีผลเฉพาะ'+($('#fRound').value?'รอบจัดส่งที่ '+esc($('#fRound').value):'ทุกรอบ')+' ตามตัวกรองด้านบน · บันทึกประวัติทุกรายการ</p>'+
+    '<div class="row"><button class="btn pri" id="bkSave">แก้ไขทั้งหมด</button></div></div>';
+  $('#bkSave').onclick=function(){
+    var p={field:$('#bkField').value,from:$('#bkFrom').value,to:$('#bkTo').value.trim(),provinceRound:$('#fRound').value};
+    if(!p.from||!p.to)return toast('ใส่ค่าเดิมและค่าใหม่',true);
+    api('bulkReplace',p).then(function(r){toast('แก้ไขแล้ว '+r.updated+' ราย');closeDrawer();loadFarmers();}).catch(fail);
+  };
+};
+
+
+/* ============ รูปส่วนตัว: โหลดผ่านสคริปต์ตามสิทธิ์ ============ */
+var PH={};
+function loadPhotos(root){
+  var imgs=$$('img[data-ph]',root).filter(function(i){return !i.src;});
+  imgs.forEach(function(i){if(PH[i.dataset.ph])i.src=PH[i.dataset.ph];});
+  var need=imgs.filter(function(i){return !PH[i.dataset.ph];}).map(function(i){return i.dataset.ph;});
+  need=need.filter(function(v,i){return need.indexOf(v)===i;});
+  for(var k=0;k<need.length;k+=12)(function(batch){
+    api('photos',{ids:batch}).then(function(r){
+      batch.forEach(function(ref){var id=Object.keys(r).filter(function(x){return ref.indexOf(x)>-1;})[0];if(id&&r[id])PH[ref]=r[id];});
+      $$('img[data-ph]',root).forEach(function(i){if(!i.src&&PH[i.dataset.ph])i.src=PH[i.dataset.ph];});
+    }).catch(function(){});
+  })(need.slice(k,k+12));
+  $$('img[data-full]',root).forEach(function(i){i.onclick=function(){
+    var bg=document.createElement('div');bg.className='drawer-bg';bg.style.zIndex=1500;bg.style.display='grid';bg.style.placeItems='center';
+    bg.innerHTML='<div class="loading" style="color:#fff">กำลังโหลดรูปเต็ม…</div>';bg.onclick=function(){bg.remove();};document.body.appendChild(bg);
+    api('photos',{ids:[i.dataset.ph],full:true}).then(function(r){var v=r[Object.keys(r)[0]];bg.innerHTML=v?'<img src="'+v+'" style="max-width:94vw;max-height:90vh;border-radius:8px">':'<div class="loading" style="color:#fff">เปิดรูปไม่ได้</div>';}).catch(function(e){bg.innerHTML='<div class="loading" style="color:#fff">'+esc(e.message)+'</div>';});
+  };});
+}
+/* ============ รายละเอียดเกษตรกร ============ */
+function closeDrawer(){$('#drawer').classList.add('hidden');}
+$$('#drawer [data-close]').forEach(function(b){b.onclick=closeDrawer;});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer();});
+function openFarmer(id){
+  $('#drawer').classList.remove('hidden');$('#dTitle').textContent=id;$('#dBody').innerHTML='<div class="loading">กำลังโหลด…</div>';
+  api('farmerDetail',{farmerId:id}).then(renderDetail).catch(function(e){$('#dBody').innerHTML='<div class="empty">'+esc(e.message)+'</div>';});
+}
+function renderDetail(D){
+  var f=D.farmer,s=D.status,canEdit=S.user.role!=='viewer'&&S.user.role!=='center';
+  $('#dTitle').innerHTML=esc(D.name)+' <span class="muted small">'+esc(f.farmerId)+' · รอบ '+esc(f.roundNo)+'</span>';
+  var h='';
+  h+='<div class="panel"><div class="panel-head"><h3>ความคืบหน้า</h3><span class="spacer"></span><span class="small muted">'+(f.provinceRound?'รอบจัดส่งที่ '+esc(f.provinceRound)+' · ':'')+'ส่งมอบ '+thDate(f.receiveDate)+(f.deliveryPlace?' ที่ '+esc(f.deliveryPlace):'')+(s.days!=null?' · ผ่านมา '+s.days+' วัน':'')+'</span></div><ul class="timeline">'+
+    s.stages.map(function(x){return '<li class="'+(x.done?'d':x.overdue?'x':'')+'"><span class="m"></span><div><b>'+esc(x.name)+'</b><div class="small muted">'+(x.done?'ส่งแล้ว':x.overdue?'เลยกำหนด '+x.daysLate+' วัน':'กำหนด '+thDate(x.dueDate))+(x.count?' · '+x.count+' ครั้ง':'')+'</div></div></li>';}).join('')+
+    '</ul><div class="row small"><span class="tag '+(s.doaeRegistered?'':'amber')+'">ทะเบียนเกษตรกร: '+(s.doaeRegistered?'แจ้งแล้ว':'ยังไม่แจ้ง')+'</span><span class="tag root">ได้รับ '+num(f.stalksReceived)+' ลำ (พอปลูก ~'+s.plantableRai+' ไร่)</span><span class="tag root">คืน/ขยายต่อ '+num(s.returned)+' / '+num(s.returnTarget)+' ลำ'+(s.returnedBy&&s.returned?' · ปลูกเอง '+num(s.returnedBy.self)+' · ชุมชน '+num(s.returnedBy.community)+' · หน่วยงาน '+num(s.returnedBy.agency):'')+(s.expandRai?' · ขยาย '+s.expandRai+' ไร่':'')+'</span>'+(f.allocOverride===true||f.allocOverride==='TRUE'?'<span class="tag amber" title="แก้จำนวนรายคนแล้ว จะไม่ถูกคำนวณทับเมื่อเปลี่ยนหลักเกณฑ์รอบ">ตัวเลขแก้รายคน</span>':'')+''+(s.cmd?'<span class="tag '+(s.cmd==='พบใบด่าง'?'red':'')+'">ใบด่าง: '+esc(s.cmd)+'</span>':'')+
+    (s.lat?'<a class="tag" target="_blank" href="https://www.google.com/maps?q='+s.lat+','+s.lon+'">แปลงจริงบนแผนที่ ↗</a>':'')+(f.predLat?'<a class="tag" target="_blank" href="https://www.google.com/maps?q='+f.predLat+','+f.predLon+'">พิกัดตอนสมัคร ↗</a>':'')+'</div>'+
+    (D.others.length?'<p class="small muted">เคยรับพันธุ์รอบอื่น: '+D.others.map(function(o){return '<a href="#" onclick="openFarmer(\''+esc(o.farmerId)+'\');return false">รอบ '+o.roundNo+'</a>';}).join(', ')+'</p>':'')+'</div>';
+  h+=plotPanel(D)+visitPanel(D);
+  if(f.flags)h+='<div class="panel" style="border-color:#E8C77E;background:var(--amber-soft)"><b>ข้อมูลที่ควรตรวจแก้</b><div>'+f.flags.split(' | ').map(function(x){return '<span class="tag amber">'+esc(x)+'</span>';}).join('')+'</div></div>';
+  var F=[['prefix','คำนำหน้า'],['firstName','ชื่อ'],['lastName','นามสกุล'],['citizenId',D.canSeeId?'เลขบัตรประชาชน':'เลขบัตรประชาชน (ปิดบางส่วน · พิมพ์ใหม่ครบ 13 หลักเพื่อแก้)'],['phone','เบอร์โทร'],['address','ที่อยู่แปลง (ตามใบสมัคร)'],['tambon','ตำบล'],['amphoe','อำเภอที่ตั้งแปลง'],['respDistrict','อำเภอที่รับผิดชอบติดตาม'],['predCoordRaw','พิกัดตอนสมัคร (X Y หรือ lat,lon)'],['raiRequested','พื้นที่ขอรับ (ไร่)'],['stalksReceived','ท่อนพันธุ์ที่ได้รับ (ลำ)'],['returnTarget','ต้องส่งคืน (ลำ)'],['variety','พันธุ์'],['provinceRound','รอบที่จัดส่งในจังหวัด'],['receiveDate','วันส่งมอบต้นพันธุ์'],['deliveryPlace','สถานที่จัดส่ง'],['status','สถานะ'],['note','หมายเหตุ']];
+  h+='<div class="panel"><div class="panel-head"><h3>ข้อมูลเกษตรกร</h3><span class="spacer"></span>'+(canEdit?'<button class="btn pri" id="btnSaveF">บันทึกการแก้ไข</button>':'')+'</div><div class="form" id="fForm">'+
+    F.map(function(x){var k=x[0],v=f[k];var inp;
+      if(k==='receiveDate')inp='<input class="inp" type="date" name="'+k+'" value="'+isoDate(v)+'">';
+      else if(k==='amphoe'||k==='respDistrict')inp='<select class="inp" name="'+k+'">'+S.districts.map(function(d){return '<option'+(d===v?' selected':'')+'>'+esc(d)+'</option>';}).join('')+(S.districts.indexOf(v)<0?'<option selected>'+esc(v)+'</option>':'')+'</select>';
+      else if(k==='variety')inp='<select class="inp" name="'+k+'"><option></option>'+['อิทธิ 1','อิทธิ 2','อิทธิ 3','คละพันธุ์'].map(function(o){return '<option'+(o===v?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+      else if(k==='status')inp='<select class="inp" name="'+k+'">'+['ใช้งาน','ยกเลิก'].map(function(o){return '<option'+(o===v?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+      else inp='<input class="inp" name="'+k+'" value="'+esc(v)+'"'+(k==='citizenId'||k==='phone'||k==='provinceRound'?' inputmode="numeric"':'')+(k==='deliveryPlace'?' list="placeList"':'')+'>';
+      return '<label>'+x[1]+inp+'</label>';}).join('')+'</div>'+
+    '<p class="small muted">แก้ไขแล้วระบบตรวจเลขบัตร เบอร์ และพิกัดใหม่ให้อัตโนมัติ ทุกการแก้ไขถูกบันทึกประวัติ</p></div>';
+  h+='<div class="panel"><div class="panel-head"><h3>รายงาน ('+D.reports.length+')</h3><span class="spacer"></span>'+(canEdit?'<button class="btn" id="btnAddRep">บันทึกรายงานแทนเกษตรกร</button>':'')+'</div><div id="addRepBox"></div>'+
+    (D.reports.length?D.reports.map(repCard).join(''):'<div class="empty">ยังไม่มีรายงาน</div>')+'</div>';
+  h+='<div class="panel"><div class="panel-head"><h3>บัญชี LINE ที่ดูแล</h3></div>'+(D.links.length?D.links.map(function(l){return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:1">'+esc(l.displayName||l.lineUserId)+' <span class="small muted">ลงทะเบียน '+thDT(l.linkedAt)+' โดย '+esc(l.linkedBy)+'</span></span>'+((l.active===true||l.active==='TRUE')?'<span class="tag">ใช้งาน</span>'+(['manager','admin'].indexOf(S.user.role)>-1?' <button class="btn bad small" data-unlink="'+esc(l.lineUserId)+'">ยกเลิกการเชื่อม</button>':''):'<span class="tag amber">ยกเลิกแล้ว</span>')+'</div>';}).join(''):'<div class="empty">ยังไม่ลงทะเบียน LINE · ให้เกษตรกรเพิ่มเพื่อน LINE OA แล้วพิมพ์เลขบัตรประชาชน</div>')+'</div>';
+  h+='<div class="grid2"><div class="panel"><h3>ประวัติการแจ้งเตือน</h3>'+(D.reminders.length?'<table>'+D.reminders.map(function(r){return '<tr><td class="small">'+thDT(r.sentAt)+'</td><td class="small">'+esc(r.stage)+'</td><td class="small">'+esc(r.kind)+'</td><td class="small">'+esc(r.result)+'</td></tr>';}).join('')+'</table>':'<p class="muted small">ยังไม่มี</p>')+'</div>'+
+    '<div class="panel"><h3>ประวัติการแก้ไข</h3>'+(D.audit.length?'<table>'+D.audit.map(function(a){return '<tr><td class="small">'+thDT(a.ts)+'<br>'+esc(a.user)+'</td><td class="small">'+esc(a.field||a.action)+': <s class="muted">'+esc(a.oldValue)+'</s> → '+esc(a.newValue)+'</td></tr>';}).join('')+'</table>':'<p class="muted small">ยังไม่มี</p>')+'</div></div>';
+  $('#dBody').innerHTML=h;
+  bindVisit(D);
+  if(canEdit){
+    $('#btnSaveF').onclick=function(){
+      var ch={};$$('#fForm [name]').forEach(function(i){var k=i.name,v=i.value;var o=f[k];if(k==='receiveDate'){if(v!==isoDate(o))ch[k]=v;}else if(String(v)!==String(o==null?'':o))ch[k]=v;});
+      if(!Object.keys(ch).length)return toast('ไม่มีการเปลี่ยนแปลง');
+      this.disabled=true;api('updateFarmer',{farmerId:f.farmerId,changes:ch}).then(function(){toast('บันทึกแล้ว');openFarmer(f.farmerId);}).catch(function(e){fail(e);$('#btnSaveF').disabled=false;});
+    };
+    $('#btnAddRep').onclick=function(){addRepForm(f.farmerId);};
+  }
+  $$('#dBody [data-unlink]').forEach(function(b){b.onclick=function(){if(confirm('ยกเลิกการเชื่อม LINE บัญชีนี้?'))api('unlinkLine',{farmerId:f.farmerId,lineUserId:b.dataset.unlink}).then(function(){openFarmer(f.farmerId);}).catch(fail);};});
+  bindVerify($('#dBody'),function(){openFarmer(f.farmerId);});loadPhotos($('#dBody'));
+}
+function repCard(r,withName){
+  var st=(S.stages.filter(function(s){return s.code===r.stage;})[0]||{name:r.stage==='REG'?'แจ้งขึ้นทะเบียนเกษตรกร':r.stage}).name;
+  var vcls=r.verifyStatus==='ไม่ผ่าน'?'red':r.verifyStatus==='รอตรวจ'||r.verifyStatus==='ต้องลงพื้นที่'?'amber':'';
+  var items=[['การเจริญเติบโต',r.growth],['ปลูก (ไร่)',r.plantedRai],['ขึ้นทะเบียน',r.doaeRegistered],['ใบด่าง',r.cmdStatus],['ส่งคืน/ขยาย (ลำ)',r.stalksReturned],['ส่งให้',r.returnTo],['จำนวนผู้รับต่อ (ราย)',r.recipientCount],['ขยายปลูก (ไร่)',r.expandRai],['วันปลูก',r.plantDate?thDate(r.plantDate):''],['ต้นรอด (%)',r.survivalPct],['ผลผลิต (ตัน)',r.yieldTon],['ผู้รับต่อ',r.returnRecipient],['หมายเหตุ',r.note]].filter(function(x){return x[1]!==''&&x[1]!=null;});
+  return '<div class="rep">'+(withName?'<div class="row"><b style="flex:1;cursor:pointer" onclick="openFarmer(\''+esc(r.farmerId)+'\')">'+esc(r.name)+'</b><span class="small muted">ต.'+esc(r.tambon)+' อ.'+esc(r.district)+'</span></div>':'')+
+    '<div class="row"><b style="flex:1">'+esc(st)+'</b><span class="tag '+vcls+'">'+esc(r.verifyStatus)+'</span></div>'+
+    '<div class="small muted">'+thDT(r.submittedAt)+' · '+(r.channel==='line'?'ส่งทาง LINE':'เจ้าหน้าที่บันทึก ('+esc(r.submittedBy)+')')+'</div>'+
+    (items.length?'<div class="small" style="margin-top:6px">'+items.map(function(x){return x[0]+': <b>'+esc(x[1])+'</b>';}).join(' · ')+'</div>':'')+
+    (r.lat?'<div class="small" style="margin-top:4px">พิกัด <a target="_blank" href="https://www.google.com/maps?q='+r.lat+','+r.lon+'">'+r.lat+', '+r.lon+' ↗</a>'+(r.coordType==='utm'?' (แปลงจาก X Y '+esc(r.coordRaw)+')':'')+(r.geoAmphoe?' · ต.'+esc(r.geoTambon)+' อ.'+esc(r.geoAmphoe):'')+'</div>':'')+
+    (r.verifyFlags?'<div style="margin-top:6px">'+String(r.verifyFlags).split(' | ').map(function(x){return '<span class="tag amber">'+esc(x)+'</span>';}).join('')+'</div>':'')+
+    (r.photos?'<div class="ph">'+String(r.photos).split('\n').map(function(u){return '<img data-ph="'+esc(u)+'" data-full="1" alt="รูปแปลง" style="background:#E3EEE2;cursor:zoom-in">';}).join('')+'</div>':'')+
+    (S.user.role!=='viewer'&&S.user.role!=='center'&&r.verifyStatus!=='ผ่าน'?'<div class="row" style="margin-top:10px"><button class="btn pri" data-v="ผ่าน" data-r="'+esc(r.reportId)+'">ผ่าน</button><button class="btn warn" data-v="ต้องลงพื้นที่" data-r="'+esc(r.reportId)+'">ต้องลงพื้นที่</button><button class="btn bad" data-v="ไม่ผ่าน" data-r="'+esc(r.reportId)+'">ไม่ผ่าน ให้ส่งใหม่</button></div>':'')+
+    (r.verifiedBy?'<div class="small muted" style="margin-top:4px">ตรวจโดย '+esc(r.verifiedBy)+' '+thDT(r.verifiedAt)+'</div>':'')+'</div>';
+}
+function bindVerify(root,after){
+  $$('[data-v][data-r]',root).forEach(function(b){b.onclick=function(){
+    var p={reportId:b.dataset.r,status:b.dataset.v};
+    if(p.status==='ไม่ผ่าน'){var n=prompt('เหตุผล (จะแจ้งเกษตรกรทาง LINE ให้ส่งใหม่)');if(n===null)return;p.note=n;p.notifyFarmer=true;}
+    if(p.status==='ต้องลงพื้นที่'){var n2=prompt('บันทึกเพิ่มเติม (ถ้ามี)');if(n2===null)return;p.note=n2;}
+    b.disabled=true;api('verifyReport',p).then(function(){toast('บันทึกผลตรวจแล้ว');after();}).catch(fail);
+  };});
+}
+function addRepForm(fid){
+  var box=$('#addRepBox');
+  box.innerHTML='<div class="rep" style="background:var(--leaf-soft)"><div class="form">'+
+    '<label>รอบรายงาน<select class="inp" id="arStage">'+S.stages.map(function(s){return '<option value="'+s.code+'">'+esc(s.name)+'</option>';}).join('')+'<option value="REG">แจ้งขึ้นทะเบียนเกษตรกร</option></select></label>'+
+    '<label>การเจริญเติบโต<select class="inp" id="arGrowth"><option></option><option>งอกดี โตดี</option><option>งอกบางส่วน</option><option>งอกไม่ดี/ตาย</option><option>ยังไม่ได้ปลูก</option><option>ดีมาก</option><option>ปานกลาง</option><option>ไม่ดี</option></select></label>'+
+    '<label>พิกัดแปลง (X Y หรือ lat,lon)<input class="inp" id="arCoord" placeholder="560350 1813901"></label>'+
+    '<label>ปลูก (ไร่)<input class="inp" id="arRai" type="number" step="0.25"></label>'+
+    '<label>ขึ้นทะเบียนเกษตรกร<select class="inp" id="arDoae"><option></option><option>ขึ้นทะเบียนแล้ว</option><option>ยังไม่ขึ้นทะเบียน</option></select></label>'+
+    '<label>ใบด่าง<select class="inp" id="arCmd"><option></option><option>ไม่พบ</option><option>สงสัย</option><option>พบใบด่าง</option></select></label>'+
+    '<label>ส่งคืน/ขยาย (ลำ)<input class="inp" id="arRet" type="number"></label>'+
+    '<label>ส่งให้<select class="inp" id="arTo"><option></option><option>ขยายปลูกเอง</option><option>แบ่งเกษตรกรในชุมชน</option><option>คืนหน่วยงาน/สมาคม</option></select></label>'+
+    '<label>ขยายปลูกเพิ่ม (ไร่)<input class="inp" id="arExp" type="number" step="0.5"></label>'+
+    '<label>วันปลูกจริง<input class="inp" id="arPlant" type="date"></label>'+
+    '<label>ต้นรอด (%)<select class="inp" id="arSurv"><option></option><option value="95">90% ขึ้นไป</option><option value="80">70–89%</option><option value="60">50–69%</option><option value="30">น้อยกว่าครึ่ง</option></select></label>'+
+    '<label>ผลผลิตรวม (ตัน)<input class="inp" id="arYield" type="number" step="0.1"></label>'+
+    '<label>จำนวนผู้รับต่อ (ราย)<input class="inp" id="arRecN" type="number"></label>'+
+    '<label>ผู้รับต่อ<input class="inp" id="arWho"></label><label>หมายเหตุ<input class="inp" id="arNote" placeholder="เช่น แจ้งทางโทรศัพท์"></label></div>'+
+    '<div class="row" style="margin-top:10px"><button class="btn pri" id="arSave">บันทึกรายงาน</button><button class="btn" onclick="$(\'#addRepBox\').innerHTML=\'\'">ยกเลิก</button></div></div>';
+  $('#arSave').onclick=function(){
+    var p={farmerId:fid,stage:$('#arStage').value,growth:$('#arGrowth').value,coordText:$('#arCoord').value.trim(),plantedRai:$('#arRai').value,doaeRegistered:$('#arDoae').value,cmdStatus:$('#arCmd').value,stalksReturned:$('#arRet').value,returnTo:$('#arTo').value,returnRecipient:$('#arWho').value,note:$('#arNote').value,plantDate:$('#arPlant').value,survivalPct:$('#arSurv').value,yieldTon:$('#arYield').value,recipientCount:$('#arRecN').value,expandRai:$('#arExp').value};
+    this.disabled=true;api('addReport',p).then(function(){toast('บันทึกแล้ว');openFarmer(fid);}).catch(function(e){fail(e);$('#arSave').disabled=false;});
+  };
+}
+
+/* ============ ตรวจรายงาน ============ */
+$('#rStatus').onchange=$('#rStage').onchange=loadReports;
+function loadReports(){
+  $('#rList').innerHTML='<div class="loading">กำลังโหลด…</div>';
+  var p=filt();p.status=$('#rStatus').value;p.stage=$('#rStage').value;
+  api('reports',p).then(function(list){
+    $('#rList').innerHTML=list.length?list.map(function(r){return repCard(r,true);}).join(''):'<div class="empty">ไม่มีรายงานในสถานะนี้</div>';
+    bindVerify($('#rList'),loadReports);loadPhotos($('#rList'));
+  }).catch(fail);
+}
+
+/* ============ คิวลงทะเบียน ============ */
+function loadPending(){
+  $('#pList').innerHTML='<div class="loading">กำลังโหลด…</div>';
+  api('pending').then(function(list){
+    if(!list.length){$('#pList').innerHTML='<div class="empty">ไม่มีคิวค้าง</div>';return;}
+    $('#pList').innerHTML=list.map(function(p){return '<div class="rep"><div class="row"><b style="flex:1">'+esc(p.inputName||p.displayName)+'</b><span class="small muted">'+thDT(p.createdAt)+'</span></div>'+
+      '<div class="small">LINE: '+esc(p.displayName)+' · เลขบัตรที่พิมพ์: '+esc(p.inputCitizenId||'–')+' · เบอร์: '+esc(p.inputPhone||'–')+'</div>'+
+      '<div style="margin-top:8px">'+(p.suggest.length?'<div class="small muted">ระบบแนะนำ:</div>'+p.suggest.map(function(s){return '<div class="row" style="padding:4px 0"><span style="flex:1">'+esc(s.name)+' <span class="small muted">'+esc(s.farmerId)+' · ต.'+esc(s.tambon)+' อ.'+esc(s.district)+' · '+esc(s.citizenId)+'</span></span><button class="btn pri" data-link="'+esc(p.pendingId)+'" data-fid="'+esc(s.farmerId)+'">จับคู่</button></div>';}).join(''):'<div class="small muted">ไม่มีรายชื่อที่ใกล้เคียง</div>')+'</div>'+
+      '<div class="row" style="margin-top:8px"><input class="inp" placeholder="หรือพิมพ์รหัสเกษตรกร เช่น KP04-012" id="man_'+esc(p.pendingId)+'"><button class="btn" data-man="'+esc(p.pendingId)+'">จับคู่</button><button class="btn bad" data-rej="'+esc(p.pendingId)+'">ไม่อยู่ในโครงการ</button></div></div>';}).join('');
+    function done(){toast('บันทึกแล้ว');loadPending();}
+    $$('[data-link]').forEach(function(b){b.onclick=function(){b.disabled=true;api('resolvePending',{pendingId:b.dataset.link,action:'link',farmerId:b.dataset.fid}).then(done).catch(fail);};});
+    $$('[data-man]').forEach(function(b){b.onclick=function(){var v=$('#man_'+b.dataset.man).value.trim();if(!v)return;api('resolvePending',{pendingId:b.dataset.man,action:'link',farmerId:v}).then(done).catch(fail);};});
+    $$('[data-rej]').forEach(function(b){b.onclick=function(){if(confirm('ยืนยันว่าไม่อยู่ในโครงการ และแจ้งเกษตรกร?'))api('resolvePending',{pendingId:b.dataset.rej,action:'reject',notify:true}).then(done).catch(fail);};});
+  }).catch(fail);
+}
+</script>
+<script>
+/* ===== ตัวอ่านไฟล์รายชื่อจากสมาคมชาวไร่มันสำปะหลังฯ (รูปแบบมาตรฐาน) ===== */
+function cleanT(v){return v==null?'':String(v).replace(/\s+/g,' ').trim();}
+function parseAssocWorkbook(wb){
+  var best=null;
+  wb.SheetNames.forEach(function(n){
+    var aoa=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null,blankrows:true});
+    var r=parseAssocSheet(aoa); r.sheet=n;
+    if(!best||r.rows.length>best.rows.length) best=r;
+  });
+  return best;
+}
+function parseAssocSheet(aoa){
+  var meta={},hdr=-1,i,j;
+  for(i=0;i<Math.min(aoa.length,60);i++){
+    var r=aoa[i]||[],a=cleanT(r[0]);
+    if(!a) continue;
+    if(/^ลำดับ/.test(a)){hdr=i;break;}
+    var m;
+    if(!meta.title&&/(แบบฟอร์ม|โครงการ)/.test(a)) meta.title=a;
+    if(meta.roundNo==null&&(m=a.match(/รอบ(?:ที่)?\s*(\d+)/))){meta.roundNo=+m[1];var s=a.match(/จาก\s*\(?([^)]+)\)?/);if(s)meta.sourceCenter=cleanT(s[1]);}
+    if(/^อำเภอที่ส่ง|^หน่วยงานที่ส่ง/.test(a)) meta.sendingOffice=cleanT(r[2]);
+    if(/^วันที่ขอรับ|^วันที่รับ/.test(a)) meta.requestText=r[2] instanceof Date?r[2].toISOString().slice(0,10):cleanT(r[2]);
+    if(/^ผู้ประสานงาน/.test(a)) meta.coordinator=cleanT(r[2]);
+    if(/^โทรศัพท์/.test(a)) meta.coordinatorPhone=cleanT(r[2]);
+    if(/^รวมเกษตรกร/.test(a)){var t=r.map(cleanT).join(' ');if((m=t.match(/([\d,]+)\s*ลำ/)))meta.totalStalks=+m[1].replace(/,/g,'');}
+  }
+  if(hdr<0) return {meta:meta,rows:[],error:'ไม่พบแถวหัวตาราง "ลำดับ" — ไฟล์ไม่ตรงรูปแบบของสมาคม'};
+  // หาตำแหน่งคอลัมน์จากข้อความหัวตาราง (หัวตารางยาว 4 แถว มีเซลล์รวม)
+  var width=0;for(i=hdr;i<hdr+5&&i<aoa.length;i++)width=Math.max(width,(aoa[i]||[]).length);
+  var col=[];for(j=0;j<width;j++){var parts=[];for(i=hdr;i<hdr+5&&i<aoa.length;i++){var v=(aoa[i]||[])[j];if(v!=null&&typeof v!=='number')parts.push(cleanT(v));}col.push(parts.join(' '));}
+  function find(re,from){for(var k=from||0;k<col.length;k++)if(re.test(col[k]))return k;return -1;}
+  var c={seq:0};
+  c.name=find(/ชื่อ/);c.phone=find(/โทรศัพท์/);c.line=find(/line/i);c.cid=find(/เลขประจำตัว|บัตรประชาชน/);c.reg=find(/ขึ้น\s*ทะเบียน/);
+  c.addr=find(/หมู่บ้าน|ที่อยู่แปลง/);c.tambon=find(/ตำบล/);c.amphoe=find(/อำเภอ/);c.prov=find(/จังหวัด/);
+  c.x=find(/ละติจูด|X/);c.y=find(/ลองติจูด/,c.x+1);if(c.y<0||c.y===c.x)c.y=c.x+1;
+  c.water=find(/แหล่งน้ำ/);
+  var q=[];for(j=0;j<col.length;j++)if(/\d\/25\d\d/.test(col[j]))q.push(j);
+  c.total=find(/^รวม|\sรวม/,(q.length?q[q.length-1]+1:0));
+  var def={name:1,phone:4,line:5,cid:6,reg:7,addr:8,tambon:9,amphoe:10,prov:11,x:12,y:13,water:14,total:19};
+  Object.keys(def).forEach(function(k){if(c[k]==null||c[k]<0)c[k]=def[k];});
+  if(!q.length)q=[15,16,17,18];
+  var rows=[];
+  for(i=hdr+1;i<aoa.length;i++){
+    var r=aoa[i]||[];
+    var seq=r[0];
+    if(!(typeof seq==='number'||/^\d+$/.test(cleanT(seq))))continue;
+    if(!cleanT(r[c.name+1])&&!cleanT(r[c.name+2])&&!cleanT(r[c.cid]))continue;
+    var qs=q.map(function(k){return Number(r[k])||0;});
+    var total=Number(r[c.total])||0;
+    var rai=total||qs.reduce(function(a,b){return a+b;},0);
+    var qIdx=qs.findIndex(function(x){return x>0;});
+    rows.push({seq:+seq,prefix:cleanT(r[c.name]),firstName:cleanT(r[c.name+1]),lastName:cleanT(r[c.name+2]),
+      phone:r[c.phone]==null?'':String(r[c.phone]),lineId:cleanT(r[c.line]),citizenId:r[c.cid]==null?'':String(r[c.cid]),
+      regMark:cleanT(r[c.reg]),address:cleanT(r[c.addr]),tambon:cleanT(r[c.tambon]),amphoe:cleanT(r[c.amphoe]),province:cleanT(r[c.prov]),
+      x:r[c.x]==null?'':r[c.x],y:r[c.y]==null?'':r[c.y],water:r[c.water]==null?'':r[c.water],rai:rai,
+      quarter:qIdx>-1?cleanT(col[q[qIdx]]).match(/\d\/25\d\d/)[0]:''});
+  }
+  return {meta:meta,rows:rows,columns:c};
+}
+
+/* ============ นำเข้าไฟล์ ============ */
+var drop=$('#drop');
+['dragover','dragenter'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over');});});
+['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(){drop.classList.remove('over');});});
+drop.addEventListener('drop',function(ev){ev.preventDefault();if(ev.dataTransfer.files[0])readFile(ev.dataTransfer.files[0]);});
+$('#file').onchange=function(){if(this.files[0])readFile(this.files[0]);};
+function readFile(file){
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      var r=parseAssocWorkbook(wb);
+      if(r.error||!r.rows.length){toast(r.error||'ไม่พบรายชื่อเกษตรกรในไฟล์',true);return;}
+      r.meta.fileName=file.name;S.parsed=r;S.preview=null;$('#btnCommit').disabled=true;
+      $('#dropName').textContent='ไฟล์ที่เลือก: '+file.name+' · '+r.rows.length+' ราย (กดอีกครั้งเพื่อเปลี่ยนไฟล์)';
+      var m=r.meta;$('#impMeta').classList.remove('hidden');
+      $('#mRound').value=m.roundNo||'';$('#mStalks').value=m.totalStalks||'';$('#mOffice').value=m.sendingOffice||'';$('#mSource').value=m.sourceCenter||'';$('#mDate').value='';$('#mProv').value=nextProvRound();$('#mPlace').value='';
+      $('#mPerRai').value=m.totalStalks&&r.rows.length?Math.round(m.totalStalks/r.rows.reduce(function(a,x){return a+(Number(x.rai)||0);},0)):'';
+      $('#mRetMode').value='multiplier';$('#mRetVal').value=1;setRetLabel();
+      $('#mNote').innerHTML='อ่านได้ <b>'+r.rows.length+' ราย</b> จากแผ่นงาน "'+esc(r.sheet)+'" · วันที่ขอรับในไฟล์: "'+esc(m.requestText||'-')+'" · ชื่อไฟล์: '+esc(file.name)+'<br>ระบุ <b>รอบที่จัดส่ง วันส่งมอบ และสถานที่จัดส่ง</b> แล้วกด "ตรวจข้อมูลก่อนนำเข้า" (ถ้าไฟล์เดียวส่งมอบหลายจุด นำเข้าแล้วแก้สถานที่รายคนหรือแบบกลุ่มได้)';
+      $('#impResult').innerHTML='';
+    }catch(err){toast('อ่านไฟล์ไม่ได้: '+err.message,true);}
+  };
+  rd.readAsArrayBuffer(file);
+}
+function setRetLabel(){$('#mRetValLbl').firstChild.textContent=$('#mRetMode').value==='perRai'?'ต้องคืนกี่ลำต่อไร่ ':'ต้องคืนกี่เท่าของที่ได้รับ ';}
+$('#mRetMode').onchange=function(){$('#mRetVal').value=this.value==='perRai'?1000:1;setRetLabel();};
+function impPayload(){
+  var m=Object.assign({},S.parsed.meta,{roundNo:$('#mRound').value,totalStalks:$('#mStalks').value,sendingOffice:$('#mOffice').value,sourceCenter:$('#mSource').value,receiveDate:$('#mDate').value,provinceRound:$('#mProv').value,deliveryPlace:$('#mPlace').value.trim(),
+    stalksPerRai:$('#mPerRai').value,returnMode:$('#mRetMode').value,
+    returnPerRai:$('#mRetMode').value==='perRai'?$('#mRetVal').value:'',returnMultiplier:$('#mRetMode').value==='multiplier'?$('#mRetVal').value:''});
+  return {meta:m,rows:S.parsed.rows,actions:dupActions()};
+}
+$('#btnPreview').onclick=function(){
+  if(!S.parsed)return;var b=this;b.disabled=true;$('#impResult').innerHTML='<div class="loading">กำลังตรวจข้อมูล…</div>';
+  api('importPreview',impPayload()).then(function(r){
+    b.disabled=false;S.preview=r;$('#btnCommit').disabled=false;
+    var st=r.stats,fl={};r.rows.forEach(function(x){(x.flags?x.flags.split(' | '):[]).forEach(function(t){var k=t.replace(/ \(.*\)$/,'').replace(/"[^"]*"/,'').replace(/รอบ [\d,]+/,'รอบก่อน');fl[k]=(fl[k]||0)+1;});});
+    $('#impResult').innerHTML='<p><span class="tag root">รอบจัดส่งที่ '+esc($('#mProv').value||'?')+'</span><span class="tag root">ส่งมอบ '+($('#mDate').value?thDate($('#mDate').value):'ยังไม่ระบุวัน')+'</span><span class="tag root">'+esc($('#mPlace').value||'ยังไม่ระบุสถานที่')+'</span><span class="tag root">'+st.perRai+' ลำ/ไร่'+(st.filePerRai&&st.filePerRai!==st.perRai?' (ไฟล์คำนวณได้ '+st.filePerRai+')':'')+'</span><span class="tag root">คืน/ขยายต่อ: '+esc(st.ruleText)+'</span></p>'+
+      (st.plantableRai<0.9?'<p class="small" style="color:#7A5205">⚠️ ได้ '+st.perRai+' ลำต่อไร่ ท่อนพันธุ์พอปลูกได้ประมาณ '+st.plantableRai+' ไร่ ต่อ 1 ไร่ที่ขอ (คิดที่ปลูกจริงประมาณ 400 ลำ/ไร่ ปรับได้ที่ PLANT_STALKS_PER_RAI) เกษตรกรจะแจ้งปลูกน้อยกว่าไร่ที่ขอได้ ระบบตั้งธงเฉพาะรายที่แจ้งปลูกมากเกินกว่าท่อนพันธุ์พอปลูก</p>':'')+'<div class="kpis">'+kpi(st.new,'รายใหม่')+kpi(st.dupAny||0,'เลขบัตรซ้ำกับรายเดิม','A '+(st.sugAdd||0)+' · B '+(st.sugNew||0)+' · ข้าม '+(st.sugSkip||0),st.dupAny?'warn':'')+kpi(num(st.totalRai,1),'ไร่รวม')+kpi(num(st.totalStalks),'ลำรวม',st.perRai+' ลำ/ไร่')+kpi(num(st.totalTarget),'ต้องคืน/ขยายต่อรวม (ลำ)',esc(st.ruleText))+kpi(st.flagged,'รายที่ต้องตรวจแก้','',st.flagged?'warn':'')+'</div>'+
+      (Object.keys(fl).length?'<div class="small" style="margin-bottom:10px">'+Object.keys(fl).map(function(k){return '<span class="tag amber">'+esc(k)+' '+fl[k]+'</span>';}).join('')+'</div>':'')+
+      '<p class="small muted">นำเข้าได้แม้มีธง แล้วแก้ไขรายคนภายหลังในแท็บเกษตรกร (ตัวกรอง "ข้อมูลต้องแก้ไข") พิกัดในไฟล์เป็นเพียงการคาดการณ์ตอนสมัคร พิกัดจริงจะมาจากเกษตรกรหลังปลูก</p>'+
+      dupPanel(r)+
+      '<div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>เลขบัตร</th><th>โทร</th><th>ตำบล / อำเภอ</th><th class="num">ไร่</th><th class="num">ลำ</th><th class="num">ต้องคืน</th><th>พิกัดสมัคร</th><th>ธง</th></tr></thead><tbody>'+
+      r.rows.map(function(x){return '<tr'+(x._sug?' class="dup-row"':'')+'><td>'+x.seq+'</td><td>'+esc(x.prefix+x.firstName+' '+x.lastName)+(x._sug?' <span class="tag '+({add:'',new:'root',skip:'amber'}[x._sug.action])+'">ซ้ำ</span>':'')+'</td><td class="small">'+esc(x.citizenId)+(x.idValid?'':' <span class="tag red">ผิด</span>')+'</td><td class="small">'+esc(x.phone)+'</td><td>'+esc(x.tambon)+' / '+esc(x.amphoe)+'</td><td class="num">'+x.raiRequested+'</td><td class="num">'+num(x.stalksReceived)+'</td><td class="num">'+num(x.returnTarget)+'</td><td class="small">'+(x.predLat?x.predLat+', '+x.predLon+(x.predCoordType==='utm'?'<br><span class="muted">จาก X Y</span>':''):'–')+'</td><td>'+(x.flags?x.flags.split(' | ').map(function(t){return '<span class="tag amber">'+esc(t)+'</span>';}).join(''):'')+'</td></tr>';}).join('')+'</tbody></table></div>';
+    bindDupPanel();
+  }).catch(function(e){b.disabled=false;fail(e);$('#impResult').innerHTML='';});
+};
+$('#btnCommit').onclick=function(){
+  if(!$('#mProv').value)return toast('ระบุรอบที่จัดส่งในจังหวัดก่อน',true);
+  if(!$('#mDate').value)return toast('ระบุวันส่งมอบต้นพันธุ์ก่อน',true);
+  if(!$('#mPlace').value.trim())return toast('ระบุสถานที่จัดส่งก่อน',true);
+  var dup=(S.rounds||[]).filter(function(r){return String(r.provinceRound)===$('#mProv').value;});
+  if(!confirm('ยืนยันนำเข้า\nรอบจัดส่งที่ '+$('#mProv').value+(dup.length?' (มีไฟล์ในรอบนี้แล้ว '+dup.length+' ไฟล์ จะรวมเป็นรอบเดียวกัน)':'')+'\nวันส่งมอบ '+thDate($('#mDate').value)+'\nสถานที่ '+$('#mPlace').value+'\n'+S.parsed.rows.length+' ราย'))return;
+  var b=this;b.disabled=true;
+  api('importCommit',impPayload()).then(function(r){
+    var sy=r.sync||{},sa=sy.added||{};
+    toast('นำเข้าแล้ว '+r.added+' ราย'+(r.newPlots?' (แปลงใหม่ของคนเดิม '+r.newPlots+')':'')+(r.addedTo?' · รับเพิ่มในแปลงเดิม '+r.addedTo:'')+(r.updated?' อัปเดต '+r.updated:'')+(r.skipped?' ข้าม '+r.skipped:'')+(r.line&&r.line.linked?' · ผูก LINE เดิม '+r.line.linked+' แปลง แจ้งแล้ว '+(r.line.notified||0)+' บัญชี':'')+
+      (sy.error?' · ส่งไประบบติดตามแปลงไม่สำเร็จ (จะลองใหม่อัตโนมัติ)':(sa['แปลง']?' · ส่งเข้าระบบติดตามแปลงแล้ว '+sa['แปลง']+' แปลง':'')));
+    S.parsed=null;S.dupAct={};$('#impMeta').classList.add('hidden');$('#file').value='';$('#dropName').textContent='';$('#impResult').innerHTML='';loadRounds();loadRoundTable();
+  }).catch(function(e){b.disabled=false;fail(e);});
+};
+function loadRoundTable(){
+  loadRounds();
+  api('rounds').then(function(rs){
+    var adm=S.user.role==='admin',mgr=adm||S.user.role==='manager';
+    $('#roundTable').innerHTML=rs.length?'<thead><tr><th>รอบจัดส่ง</th><th>วันส่งมอบ</th><th>สถานที่จัดส่ง</th><th>รอบสมาคม</th><th>หลักเกณฑ์</th><th>ส่งจาก</th><th class="num">ราย</th><th class="num">ไร่</th><th class="num">ลำ</th><th>ไฟล์</th><th>นำเข้า</th><th></th></tr></thead><tbody>'+
+      rs.map(function(r){return '<tr><td><b>'+(r.provinceRound?'ที่ '+esc(r.provinceRound):'<span class="tag amber">ไม่ระบุ</span>')+'</b></td><td>'+thDate(r.receiveDate)+'</td><td>'+(r.deliveryPlace?esc(r.deliveryPlace):'<span class="tag amber">ไม่ระบุ</span>')+'</td><td>รอบ '+esc(r.roundNo)+'</td><td class="small">'+(r.stalksPerRai?num(r.stalksPerRai)+' ลำ/ไร่':'–')+'<br><span class="muted">คืน '+(r.returnMode==='perRai'?num(r.returnPerRai)+' ลำ/ไร่':(r.returnMultiplier||1)+' เท่า')+'</span></td><td class="small">'+esc(r.sendingOffice)+'<br><span class="muted">'+esc(r.sourceCenter)+'</span></td><td class="num">'+r.farmerCount+'</td><td class="num">'+num(r.totalRai,1)+'</td><td class="num">'+num(r.totalStalks)+'</td><td class="small">'+esc(r.sourceFile)+'</td><td class="small">'+thDT(r.importedAt)+'<br>'+esc(r.importedBy)+'</td><td>'+
+        (mgr?'<button class="btn small" data-rd="'+esc(r.roundId)+'">แก้ข้อมูลการส่งมอบ</button> ':'')+(adm?'<button class="btn bad small" data-del="'+esc(r.batchId)+'">ลบชุดนี้</button>':'')+'</td></tr>';}).join('')+'</tbody>':'<tr><td><div class="empty">ยังไม่มีรอบที่นำเข้า</div></td></tr>';
+    $$('[data-rd]').forEach(function(b){b.onclick=function(){roundForm(rs.filter(function(r){return r.roundId===b.dataset.rd;})[0]);};});
+    $$('[data-del]').forEach(function(b){b.onclick=function(){if(confirm('ลบข้อมูลที่นำเข้าชุดนี้ทั้งหมด? (ใช้เมื่อนำเข้าผิดไฟล์ ลบได้เฉพาะชุดที่ยังไม่มีการลงทะเบียน LINE/รายงาน)'))api('deleteBatch',{batchId:b.dataset.del}).then(function(r){toast('ลบแล้ว '+r.deleted+' ราย');loadRounds();loadRoundTable();}).catch(fail);};});
+  }).catch(fail);
+}
+
+function roundForm(r){
+  $('#drawer').classList.remove('hidden');$('#dTitle').textContent='ข้อมูลการส่งมอบ · '+(r.sourceFile||r.roundId);
+  $('#dBody').innerHTML='<div class="panel"><div class="form">'+
+    '<label>รอบที่จัดส่งในจังหวัด<input class="inp" id="rfProv" type="number" min="1" value="'+esc(r.provinceRound||'')+'"></label>'+
+    '<label>วันส่งมอบต้นพันธุ์<input class="inp" id="rfDate" type="date" value="'+isoDate(r.receiveDate)+'"></label>'+
+    '<label>สถานที่จัดส่ง<input class="inp" id="rfPlace" list="placeList" value="'+esc(r.deliveryPlace||'')+'"></label>'+
+    '<label>ศูนย์ที่ส่งพันธุ์ (หน่วยงานสนับสนุน เช่น ศวพ.)<input class="inp" id="rfCenter" list="centerList" value="'+esc(r.sourceCenter||'')+'"></label>'+
+    '<label>ลำต่อไร่ที่ให้<input class="inp" id="rfPerRai" type="number" value="'+esc(r.stalksPerRai||'')+'"></label>'+
+    '<label>หลักเกณฑ์การคืน/ขยายต่อ<select class="inp" id="rfMode"><option value="multiplier"'+(r.returnMode!=='perRai'?' selected':'')+'>เท่าของจำนวนลำที่ได้รับ</option><option value="perRai"'+(r.returnMode==='perRai'?' selected':'')+'>ลำต่อไร่ที่ขอรับ</option></select></label>'+
+    '<label>ค่า (เท่า หรือ ลำ/ไร่)<input class="inp" id="rfVal" type="number" step="0.1" value="'+esc(r.returnMode==='perRai'?r.returnPerRai:(r.returnMultiplier||1))+'"></label>'+
+    '<label>หมายเหตุ<input class="inp" id="rfNote" value="'+esc(r.note||'')+'"></label></div>'+
+    '<label style="display:block;margin-top:10px" class="small muted">ข้อความเงื่อนไขเฉพาะรอบนี้ (เว้นว่าง = ใช้แม่แบบกลาง; ใช้ {received} {rai} {perRai} {target} {rule})<textarea class="inp" id="rfCond" rows="5" style="width:100%">'+esc(r.conditions||'')+'</textarea></label>'+
+    '<p class="small muted">เปลี่ยนลำต่อไร่หรือหลักเกณฑ์การคืน ระบบคำนวณจำนวนที่ได้รับและต้องคืนของทุกคนในไฟล์นี้ใหม่ ยกเว้นรายที่แก้ตัวเลขรายคนไว้</p>'+
+    '<label class="row small" style="margin-top:12px"><input type="checkbox" id="rfApply" checked> ใช้ค่าใหม่กับเกษตรกรทุกคนในไฟล์นี้ ('+esc(r.farmerCount)+' ราย) ถ้าบางคนรับคนละจุด แก้รายคนภายหลังได้</label>'+
+    '<p class="small muted">เปลี่ยนวันส่งมอบแล้ว กำหนดส่งรายงานและการแจ้งเตือนของทุกคนจะคำนวณใหม่อัตโนมัติ</p>'+
+    '<div class="row"><button class="btn pri" id="rfSave">บันทึก</button></div></div>';
+  $('#rfSave').onclick=function(){
+    var p={roundId:r.roundId,provinceRound:$('#rfProv').value,receiveDate:$('#rfDate').value,deliveryPlace:$('#rfPlace').value.trim(),sourceCenter:$('#rfCenter').value.trim(),note:$('#rfNote').value,applyToFarmers:$('#rfApply').checked,conditions:$('#rfCond').value,
+      stalksPerRai:$('#rfPerRai').value,returnMode:$('#rfMode').value,returnPerRai:$('#rfMode').value==='perRai'?$('#rfVal').value:'',returnMultiplier:$('#rfMode').value==='multiplier'?$('#rfVal').value:''};
+    this.disabled=true;api('updateRound',p).then(function(x){toast('บันทึกแล้ว'+(p.applyToFarmers?' ปรับเกษตรกร '+x.updatedFarmers+' ราย':'')+(x.recalculated?' · คำนวณลำใหม่ '+x.recalculated+' ราย':''));closeDrawer();loadRounds();loadRoundTable();}).catch(function(e){fail(e);$('#rfSave').disabled=false;});
+  };
+}
+
+/* ============ ตั้งค่า ============ */
+function loadSettings(){
+  api('quota').then(function(q){$('#quota').textContent='โควตาข้อความเดือนนี้คงเหลือ: '+(q.remaining==null?'ไม่จำกัด / ยังไม่ได้เชื่อม LINE':num(q.remaining)+' ข้อความ');}).catch(function(){});
+  api('reminders').then(function(rs){$('#remTable').innerHTML=rs.length?'<thead><tr><th>เวลา</th><th>เกษตรกร</th><th>รอบ</th><th>ประเภท</th><th>ผล</th></tr></thead><tbody>'+rs.map(function(r){return '<tr><td class="small">'+thDT(r.sentAt)+'</td><td>'+esc(r.farmerId)+'</td><td>'+esc(r.stage)+'</td><td>'+esc({pre:'ล่วงหน้า',due:'ครบกำหนด',overdue:'เลยกำหนด',doae:'ขึ้นทะเบียน'}[r.kind]||r.kind)+'</td><td>'+esc(r.result)+'</td></tr>';}).join('')+'</tbody>':'<tr><td class="muted">ยังไม่มีการแจ้งเตือน</td></tr>';}).catch(function(){});
+  if(S.user.role==='manager'||S.user.role==='admin')loadSync();
+  if(S.user.role!=='admin')return;
+  api('users').then(function(us){
+    $('#userTable').innerHTML='<thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อ-สกุล</th><th>สิทธิ์</th><th>อำเภอ</th><th>โทร</th><th>LINE</th><th>สถานะ</th><th></th></tr></thead><tbody>'+us.map(function(u){return '<tr><td>'+esc(u.username)+'</td><td>'+esc(u.fullName)+'</td><td>'+esc(u.role)+'</td><td>'+esc(u.role==='center'?(u.center||''):u.district)+'</td><td>'+esc(u.phone)+'</td><td>'+(u.lineUserId?'✓':'')+'</td><td>'+((u.active===true||u.active==='TRUE')?'ใช้งาน':'ระงับ')+'</td><td><button class="btn small" data-eu="'+esc(u.username)+'">แก้ไข</button></td></tr>';}).join('')+'</tbody>';
+    $$('[data-eu]').forEach(function(b){b.onclick=function(){userForm(us.filter(function(u){return u.username===b.dataset.eu;})[0]);};});
+  }).catch(fail);
+  api('config').then(function(cs){
+    $('#cfgTable').innerHTML='<thead><tr><th>ค่า</th><th>คำอธิบาย</th><th style="width:40%">ค่าปัจจุบัน</th><th></th></tr></thead><tbody>'+cs.map(function(c,i){return '<tr><td class="small">'+esc(c.key)+'</td><td class="small muted">'+esc(c.description)+'</td><td>'+(c.key==='STAGES'?'<textarea class="inp" rows="5" style="width:100%" id="cfg_'+i+'">'+esc(JSON.stringify(JSON.parse(c.value||'[]'),null,1))+'</textarea>':'<input class="inp" style="width:100%" id="cfg_'+i+'" value="'+esc(c.value)+'">')+'</td><td><button class="btn small" data-ck="'+esc(c.key)+'" data-ci="'+i+'">บันทึก</button></td></tr>';}).join('')+'</tbody>';
+    $$('[data-ck]').forEach(function(b){b.onclick=function(){var v=$('#cfg_'+b.dataset.ci).value;if(b.dataset.ck==='STAGES'){try{v=JSON.stringify(JSON.parse(v));}catch(e){return toast('รูปแบบ JSON ไม่ถูกต้อง',true);}}api('saveConfig',{key:b.dataset.ck,value:v}).then(function(){toast('บันทึกแล้ว');}).catch(fail);};});
+  }).catch(fail);
+}
+function syncSummary(o){return Object.keys(o||{}).map(function(k){return esc(k)+' '+num(o[k]);}).join(' · ')||'ไม่มีรายการใหม่';}
+function loadSync(){
+  api('syncStatus').then(function(s){
+    var l=s.last,m=s.mapped||{};
+    $('#syncBox').innerHTML='<div class="row" style="gap:6px 14px">'+
+      '<span class="tag '+(s.enabled?'':'amber')+'">'+(s.enabled?'เปิดการส่งอัตโนมัติ':'ปิดการส่ง (SYNC_ENABLED)')+'</span>'+
+      '<span>รหัสโครงการปลายทาง <b>'+esc(s.projectCode)+'</b></span>'+
+      '<span>ส่งแล้ว: แปลง '+num(m.PLOT||0)+' · เกษตรกร '+num(m.FARMER||0)+' · การเจริญเติบโต '+num(m.GROWTH||0)+' · โรค '+num(m.DISEASE||0)+' · ขยายผล '+num(m.PROP||0)+' · ผลผลิต '+num(m.YIELD||0)+'</span></div>'+
+      Object.keys(s.extra||{}).map(function(lb){var x=s.extra[lb];return '<div class="row" style="gap:6px 14px;margin-top:6px"><span class="tag">ปลายทางเพิ่ม: '+esc(lb)+'</span><span>ส่งแล้ว: แปลง '+num(x.PLOT||0)+' · เกษตรกร '+num(x.FARMER||0)+' · การเจริญเติบโต '+num(x.GROWTH||0)+' · โรค '+num(x.DISEASE||0)+' · ขยายผล '+num(x.PROP||0)+' · ผลผลิต '+num(x.YIELD||0)+'</span></div>';}).join('')+
+      (l?'<p style="margin:8px 0 0">ส่งล่าสุด '+thDT(l.at)+' ('+l.seconds+' วินาที) · เพิ่ม: '+syncSummary(l.added)+' · ปรับ: '+syncSummary(l.updated)+
+        (l.errorCount?' · <span style="color:var(--red)">ผิดพลาด '+l.errorCount+' รายการ: '+esc((l.errors||[]).join(' | '))+'</span>':'')+'</p>':'<p style="margin:8px 0 0">ยังไม่เคยส่ง</p>');
+  }).catch(function(e){$('#syncBox').textContent=e.message;});
+}
+$('#btnSync').onclick=function(){var b=this;b.disabled=true;$('#syncBox').innerHTML='<div class="loading">กำลังส่งข้อมูล…</div>';
+  api('syncNow').then(function(r){b.disabled=false;toast(r.skipped?r.skipped:'ส่งแล้ว · เพิ่ม: '+syncSummary(r.added).replace(/<[^>]+>/g,''));loadSync();}).catch(function(e){b.disabled=false;fail(e);loadSync();});};
+$('#btnNewUser').onclick=function(){userForm(null);};
+function userForm(u){
+  u=u||{};var isNew=!u.username;
+  $('#drawer').classList.remove('hidden');$('#dTitle').textContent=isNew?'เพิ่มผู้ใช้':'แก้ไขผู้ใช้ '+u.username;
+  $('#dBody').innerHTML='<div class="panel"><div class="form">'+
+    '<label>ชื่อผู้ใช้ (ภาษาอังกฤษ)<input class="inp" id="uU" value="'+esc(u.username||'')+'"'+(isNew?'':' disabled')+'></label>'+
+    '<label>ชื่อ-สกุล<input class="inp" id="uN" value="'+esc(u.fullName||'')+'"></label>'+
+    '<label>สิทธิ์<select class="inp" id="uR">'+['officer','manager','admin','viewer','center'].map(function(r){return '<option value="'+r+'"'+(r===u.role?' selected':'')+'>'+r+(r==='center'?' (หน่วยงานสนับสนุนพันธุ์ ศวพ.)':'')+'</option>';}).join('')+'</select></label>'+
+    '<label>อำเภอ<select class="inp" id="uD"><option>ทุกอำเภอ</option>'+S.districts.map(function(d){return '<option'+(d===u.district?' selected':'')+'>'+esc(d)+'</option>';}).join('')+'</select></label>'+
+    '<label>หน่วยงาน/ศูนย์ (เฉพาะสิทธิ์ center เช่น ศวพ.กำแพงเพชร · หลายศูนย์คั่นด้วย ,)<input class="inp" id="uC" list="centerList" value="'+esc(u.center||'')+'"></label>'+
+    '<label>เบอร์โทร (แสดงให้เกษตรกรเมื่อเปิด CONTACT_SHOW_OFFICERS)<input class="inp" id="uP" value="'+esc(u.phone||'')+'"></label>'+
+    '<label>LINE userId (พิมพ์ myid ในแชท OA)<input class="inp" id="uL" value="'+esc(u.lineUserId||'')+'"></label>'+
+    '<label>'+(isNew?'PIN 6 หลัก':'ตั้ง PIN ใหม่ (เว้นว่าง = ไม่เปลี่ยน)')+'<input class="inp" id="uPin" inputmode="numeric" maxlength="6"></label>'+
+    '<label>สถานะ<select class="inp" id="uA"><option value="1">ใช้งาน</option><option value="0"'+(u.active===false||u.active==='FALSE'?' selected':'')+'>ระงับ</option></select></label></div>'+
+    '<div class="row" style="margin-top:12px"><button class="btn pri" id="uSave">บันทึก</button></div></div>';
+  $('#uSave').onclick=function(){
+    var p={username:$('#uU').value.trim(),fullName:$('#uN').value,role:$('#uR').value,district:$('#uD').value,phone:$('#uP').value,lineUserId:$('#uL').value.trim(),pin:$('#uPin').value.trim(),active:$('#uA').value==='1',center:($('#uC')?$('#uC').value.trim():'')};
+    if(!/^[a-z0-9._-]{3,}$/i.test(p.username))return toast('ชื่อผู้ใช้ภาษาอังกฤษ/ตัวเลข อย่างน้อย 3 ตัว',true);
+    api('saveUser',p).then(function(){toast('บันทึกแล้ว');closeDrawer();loadSettings();}).catch(fail);
+  };
+}
+$('#btnPin').onclick=function(){api('changePin',{oldPin:$('#pinOld').value,newPin:$('#pinNew').value}).then(function(){toast('เปลี่ยน PIN แล้ว');$('#pinOld').value=$('#pinNew').value='';}).catch(fail);};
+$('#btnRemind').onclick=function(){if(confirm('ส่งแจ้งเตือนให้เกษตรกรที่ถึงกำหนดตอนนี้เลย?'))api('runReminders').then(function(m){toast(m);loadSettings();}).catch(fail);};
+</script>
+<script>
+/* ============================ v1.3 ============================ */
+var SOIL={S1:{n:'เหมาะสมสูง',c:'#1A9641'},S2:{n:'เหมาะสมปานกลาง',c:'#A6D96A'},S3:{n:'เหมาะสมเล็กน้อย',c:'#FDAE61'},N:{n:'ไม่เหมาะสม',c:'#D7191C'}};
+var SOIL_URL='https://agrimap-service.ldd.go.th/arcgis/rest/services/AGMDataCenter/DATA_CENTER_DASHBOARD_SUITABILITY_CASSAVA/MapServer';
+var SOIL_ADVICE={
+  S1:{h:'ดินเหมาะสมสูง — ปลูกมันสำปะหลังได้ผลผลิตดี',i:[
+    'ปลูกต้นฤดูฝน (เม.ย.–พ.ค.) หรือปลายฤดูฝน (ต.ค.–พ.ย.)',
+    'ไถเตรียมดิน 2 ครั้ง ยกร่อง ระยะปลูกประมาณ 1×1 ม. (~1,600 ต้น/ไร่) ใช้ท่อนยาว 20–25 ซม.',
+    'ใส่ปุ๋ยตามค่าวิเคราะห์ดิน หรือสูตร 15-7-18 ประมาณ 50 กก./ไร่ ช่วงอายุ 1–3 เดือน ร่วมกับปุ๋ยอินทรีย์',
+    'กำจัดวัชพืชให้ดีในช่วง 3 เดือนแรก เก็บเกี่ยวเมื่ออายุ 10–12 เดือน']},
+  S2:{h:'ดินเหมาะสมปานกลาง — มีข้อจำกัดบางอย่าง ต้องจัดการเพิ่ม',i:[
+    'เพิ่มอินทรียวัตถุ: ปุ๋ยหมัก/ปุ๋ยคอก 1–2 ตัน/ไร่ หรือไถกลบปุ๋ยพืชสด (ปอเทือง ถั่วพร้า) ก่อนปลูก',
+    'ใส่ปุ๋ยตามค่าวิเคราะห์ดิน แบ่งใส่ 2 ครั้ง ลดการสูญเสียในดินทราย',
+    'พื้นที่ที่น้ำขังช่วงฝนหนัก ให้ยกร่องสูงเพื่อระบายน้ำ',
+    'คลุมดินด้วยเศษพืชช่วยเก็บความชื้นในช่วงฝนทิ้งช่วง']},
+  S3:{h:'ดินเหมาะสมเล็กน้อย — ข้อจำกัดค่อนข้างรุนแรง ผลผลิตมักต่ำ',i:[
+    'ปรับปรุงดินต่อเนื่องทุกปีด้วยปุ๋ยอินทรีย์และพืชปุ๋ยสด',
+    'พื้นที่ลาดชัน ปลูกตามแนวระดับ/ทำคันดินชะลอน้ำ ลดการชะล้างหน้าดิน',
+    'ดินตื้น/ดินทรายจัด เสี่ยงขาดน้ำ พิจารณาระบบน้ำเสริม (น้ำหยด) ในช่วงแล้ง',
+    'ควรวิเคราะห์ดินก่อนปลูก และติดตามการเจริญเติบโตใกล้ชิด']},
+  N:{h:'ไม่เหมาะสม — เช่น ที่ลุ่มน้ำขัง/นาข้าว ดินตื้นมาก หรือลาดชันสูง',i:[
+    'ไม่แนะนำให้ปลูกมันสำปะหลัง เพราะเสี่ยงหัวเน่าเมื่อน้ำขังและผลผลิตต่ำ',
+    'ถ้าจำเป็นต้องปลูก ทำแปลงยกร่องสูงให้ระบายน้ำได้ดี และปลูกหลังพ้นช่วงน้ำท่วมขัง',
+    'ปรึกษาสถานีพัฒนาที่ดิน/หมอดินอาสา เพื่อวิเคราะห์ดินและเลือกพืชที่เหมาะสมกว่า']}
+};
+var SOIL_DYN=JSON.stringify([{id:0,source:{type:'mapLayer',mapLayerId:0},drawingInfo:{renderer:{type:'uniqueValue',field1:'SUIT',
+  uniqueValueInfos:['S1','S2','S3','N'].map(function(k){var c=SOIL[k].c;return {value:k,label:SOIL[k].n,symbol:{type:'esriSFS',style:'esriSFSSolid',
+    color:[parseInt(c.substr(1,2),16),parseInt(c.substr(3,2),16),parseInt(c.substr(5,2),16),255],outline:{type:'esriSLS',style:'esriSLSNull',color:[0,0,0,0],width:0}}};})}}}]);
+function soilTag(c){if(!c||!SOIL[c])return '';return '<span class="tag" style="background:#fff;border:1px solid #DDE5DD" title="ความเหมาะสมของดิน: '+SOIL[c].n+'"><i class="soil-dot" style="background:'+SOIL[c].c+'"></i>'+c+'</span>';}
+function soilLine(c){return c&&SOIL[c]?'<br>ดิน: <i class="soil-dot" style="background:'+SOIL[c].c+'"></i><b>'+c+'</b> '+SOIL[c].n:'';}
+function dl(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);}
+
+/* ---------------- เกษตรกร: แบ่งหน้า + เรียงลำดับ ---------------- */
+S.fPage=1;S.fSize=Number(store('fSize'))||50;S.fSort={k:'',d:1};S.dupAct={};
+$('#fSize').value=String(S.fSize);
+$('#fSize').onchange=function(){S.fSize=Number(this.value);store('fSize',this.value);S.fPage=1;renderFarmers();};
+var FSORT={
+  farmerId:function(f){return f.farmerId;},name:function(f){return f.name;},area:function(f){return (f.respDistrict||'')+' '+(f.tambon||'');},
+  round:function(f){return Number(f.provinceRound)||0;},rai:function(f){return Number(f.raiRequested)||0;},stalks:function(f){return Number(f.stalksReceived)||0;},
+  line:function(f){return f.linked?1:0;},prog:function(f){return f.st.done.filter(function(x){return x===1;}).length-(f.st.overdue?0.5:0);},
+  doae:function(f){return f.st.doaeOk?2:f.st.doae?1:0;},next:function(f){return f.st.nextDue?new Date(f.st.nextDue).getTime():9e15;},
+  flags:function(f){return (f.flags?f.flags.split(' | ').length:0)+(f.st.pendingVerify||0);},soil:function(f){return {S1:1,S2:2,S3:3,N:4}[f.soil]||9;}
+};
+function sortTh(k,label,cls){var on=S.fSort.k===k;return '<th class="sort'+(on?(S.fSort.d>0?' asc':' desc'):'')+(cls?' '+cls:'')+'" data-k="'+k+'">'+label+'</th>';}
+function renderFarmers(){
+  var q=$('#fq').value.trim().toLowerCase();
+  var list=S.farmers.filter(function(f){return !q||(f.name+' '+f.citizenId+' '+f.phone+' '+f.farmerId+' '+f.tambon+' '+f.respDistrict).toLowerCase().indexOf(q)>-1;});
+  if(S.fSort.k){var g=FSORT[S.fSort.k],d=S.fSort.d;list=list.slice().sort(function(a,b){var x=g(a),y=g(b);return (x<y?-1:x>y?1:0)*d||String(a.farmerId).localeCompare(String(b.farmerId));});}
+  var persons={};list.forEach(function(f){persons[f.citizenId||f.farmerId]=1;});
+  var total=list.length,pages=Math.max(1,Math.ceil(total/S.fSize));if(S.fPage>pages)S.fPage=pages;if(S.fPage<1)S.fPage=1;
+  var from=(S.fPage-1)*S.fSize,page=list.slice(from,from+S.fSize);
+  $('#fCount').textContent=num(Object.keys(persons).length)+' ราย · '+num(total)+' แปลง';
+  if(!total){$('#fTable').innerHTML='<tr><td><div class="empty">ไม่พบรายชื่อตามเงื่อนไข</div></td></tr>';$('#fPager').innerHTML='';return;}
+  $('#fTable').innerHTML='<thead><tr>'+sortTh('farmerId','รหัส')+sortTh('name','ชื่อ-สกุล')+sortTh('area','ตำบล / อำเภอ')+sortTh('round','รอบจัดส่ง')+sortTh('rai','ไร่','num')+sortTh('stalks','ลำ','num')+sortTh('line','LINE')+
+    sortTh('prog','ความคืบหน้า ('+S.stages.map(function(s){return STAGE_SHORT[s.code]||s.code;}).join(' → ')+')')+sortTh('doae','ทะเบียน')+sortTh('next','ถัดไป')+sortTh('soil','ดิน')+sortTh('flags','ข้อมูล')+'</tr></thead><tbody>'+
+   page.map(function(f){var s=f.st;return '<tr class="click" data-f="'+esc(f.farmerId)+'"><td class="small">'+esc(f.farmerId)+'</td><td><span class="dot" style="background:'+lv(s.level)+'"></span>'+esc(f.name)+
+     (f.plotCount>1?' <span class="tag root" title="เกษตรกรคนนี้มี '+f.plotCount+' แปลง">แปลง '+esc(f.plotNo)+'/'+f.plotCount+'</span>':'')+(Number(f.receiptCount)>1?' <span class="tag" title="รับท่อนพันธุ์ '+f.receiptCount+' ครั้งในแปลงนี้">รับ '+f.receiptCount+' ครั้ง</span>':'')+'</td>'+
+     '<td>'+esc(f.tambon)+' / '+esc(f.respDistrict)+'</td><td class="small">'+(f.provinceRound?'ที่ '+esc(f.provinceRound):'–')+(f.deliveryPlace?'<br><span class="muted">'+esc(f.deliveryPlace)+'</span>':'')+'</td><td class="num">'+num(f.raiRequested,1)+'</td><td class="num">'+num(f.stalksReceived)+'</td>'+
+     '<td>'+(f.linked?'<span class="tag">✓</span>':'<span class="tag amber">ยังไม่มี</span>')+'</td><td>'+track(s.done)+(s.cmd==='พบใบด่าง'?' <span class="tag red">ใบด่าง</span>':'')+'</td>'+
+     '<td>'+(s.doaeOk?'<span class="tag">ยืนยันแล้ว</span>':s.doae?'<span class="tag amber">แจ้งแล้ว รอตรวจ</span>':'<span class="muted small">–</span>')+'</td><td class="small">'+esc(s.nextName)+(s.nextDue?'<br><span class="muted">ภายใน '+thDate(s.nextDue)+'</span>':'')+'</td>'+
+     '<td>'+(soilTag(f.soil)||'<span class="muted small">–</span>')+'</td><td>'+(f.flags?'<span class="tag amber" title="'+esc(f.flags)+'">'+f.flags.split(' | ').length+' จุด</span>':'')+(s.pendingVerify?'<span class="tag root">รอตรวจ '+s.pendingVerify+'</span>':'')+'</td></tr>';}).join('')+'</tbody>';
+  $$('#fTable tr[data-f]').forEach(function(r){r.onclick=function(){openFarmer(r.dataset.f);};});
+  $$('#fTable th.sort').forEach(function(th){th.onclick=function(){var k=th.dataset.k;if(S.fSort.k===k)S.fSort.d=-S.fSort.d;else S.fSort={k:k,d:1};S.fPage=1;renderFarmers();};});
+  // ตัวแบ่งหน้า
+  var btn=function(p,label,dis,on){return '<button data-p="'+p+'"'+(dis?' disabled':'')+(on?' class="on" aria-current="page"':'')+'>'+label+'</button>';};
+  var h='<span class="info">แสดง '+num(from+1)+'–'+num(Math.min(from+S.fSize,total))+' จาก '+num(total)+' แปลง</span>';
+  if(pages>1){
+    h+=btn(1,'«',S.fPage===1)+btn(S.fPage-1,'‹',S.fPage===1);
+    var a=Math.max(1,S.fPage-2),b=Math.min(pages,S.fPage+2);if(S.fPage<=3)b=Math.min(pages,5);if(S.fPage>pages-3)a=Math.max(1,pages-4);
+    if(a>1)h+=btn(1,'1')+(a>2?'<span class="gap">…</span>':'');
+    for(var i=a;i<=b;i++)h+=btn(i,String(i),false,i===S.fPage);
+    if(b<pages)h+=(b<pages-1?'<span class="gap">…</span>':'')+btn(pages,String(pages));
+    h+=btn(S.fPage+1,'›',S.fPage===pages)+btn(pages,'»',S.fPage===pages);
+  }
+  $('#fPager').innerHTML=h;
+  $$('#fPager button[data-p]').forEach(function(b){b.onclick=function(){S.fPage=Number(b.dataset.p);renderFarmers();$('#fTable').parentNode.scrollTop=0;};});
+}
+$('#btnExport').onclick=function(){
+  var cols=[['farmerId','รหัส'],['roundNo','รอบ'],['name','ชื่อ-สกุล'],['plotNo','แปลงที่'],['citizenId','เลขบัตร'],['phone','โทร'],['tambon','ตำบล'],['respDistrict','อำเภอ'],['raiRequested','ไร่ที่ขอ'],['stalksReceived','ลำที่ได้รับ'],['returnTarget','ต้องคืน'],['receiptCount','รับพันธุ์(ครั้ง)'],['provinceRound','รอบจัดส่ง จ.กพ.'],['receiveDate','วันส่งมอบ'],['deliveryPlace','สถานที่จัดส่ง'],['soil','ความเหมาะสมดิน']];
+  var rows=[cols.map(function(c){return c[1];}).concat(['LINE','แจ้งปลูก','4 เดือน','8 เดือน','คืนครบ','ขึ้นทะเบียน','ใบด่าง','ส่งคืนแล้ว(ลำ)','ละติจูดจริง','ลองจิจูดจริง','ถัดไป','ธงข้อมูล','ปลูกหลังรับ(วัน)','ต้นรอด(%)','ผลผลิต(ตัน/ไร่)','ผู้รับต่อ(ราย)'])];
+  S.farmers.forEach(function(f){var s=f.st;rows.push(cols.map(function(c){return c[0]==='receiveDate'?isoDate(f[c[0]]):c[0]==='soil'?(f.soil&&SOIL[f.soil]?f.soil+' '+SOIL[f.soil].n:''):f[c[0]];}).concat([f.linked?'มี':'ไม่มี'],s.done.map(function(x){return x===1?'ส่งแล้ว':x===-1?'เลยกำหนด':'';}),[s.doae?'แจ้งแล้ว':'',s.cmd,s.returned,s.lat,s.lon,s.nextName,f.flags,s.plantDelay,s.survival,s.yieldPerRai,s.recipients]));});
+  dl(new Blob([toCsv(rows)],{type:'text/csv'}),'เกษตรกร_ท่อนพันธุ์_'+new Date().toISOString().slice(0,10)+'.csv');
+};
+function toCsv(rows){return '﻿'+rows.map(function(r){return r.map(function(v){v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':(/^\d{9,}$/.test(v)?'="'+v+'"':v);}).join(',');}).join('\n');}
+
+/* ---------------- นำเข้า: เลขบัตรซ้ำ A / B / ข้าม ---------------- */
+function dupDist(m){return m==null?'':(m>=1000?(m/1000).toFixed(1)+' กม.':m+' ม.');}
+function dupDefault(sg){return sg.action==='add'?'add:'+sg.target:sg.action;}
+function dupPanel(r){
+  var rows=r.rows.map(function(x,i){return {x:x,i:i};}).filter(function(o){return o.x._sug;});
+  S.dupRows=rows;S.dupAct={};
+  if(!rows.length)return '';
+  return '<div class="dup-box"><div class="panel-head" style="margin-bottom:6px"><h3>พบเลขบัตรซ้ำกับรายเดิมในระบบ '+rows.length+' ราย</h3><span class="spacer"></span>'+
+    '<button class="btn small" data-dupall="sug">ใช้ตามที่ระบบเสนอ</button><button class="btn small" data-dupall="new">ทั้งหมดเป็นแปลงใหม่ (B)</button><button class="btn small" data-dupall="skip">ข้ามทั้งหมด</button></div>'+
+    '<p class="small muted" style="margin:0 0 8px"><b>A รับเพิ่มในแปลงเดิม</b> = รวมพื้นที่ ลำ และยอดที่ต้องคืนเข้ากับแปลงเดิม นับวันรายงานจากวันรับครั้งแรก · <b>B แปลงใหม่</b> = ติดตามแยกอีกแปลง (ผูก LINE เดิมและแจ้งเกษตรกรให้อัตโนมัติ) · ทุกกรณีบันทึกประวัติการรับท่อนพันธุ์ และไม่ลบ/เขียนทับรายงานเดิม</p>'+
+    '<div class="tbl-wrap" style="max-height:360px"><table><thead><tr><th>ลำดับ</th><th>ข้อมูลในไฟล์ใหม่</th><th>รายเดิมในระบบ</th><th>เลือกการนำเข้า</th></tr></thead><tbody>'+
+    rows.map(function(o){var x=o.x,sg=x._sug,cur=dupDefault(sg);
+      return '<tr><td>'+x.seq+'</td><td><b>'+esc(x.prefix+x.firstName+' '+x.lastName)+'</b><div class="small">ต.'+esc(x.tambon)+' อ.'+esc(x.amphoe)+' · '+num(x.raiRequested,1)+' ไร่ · '+num(x.stalksReceived)+' ลำ</div></td>'+
+        '<td class="small">'+sg.options.map(function(op){return '<b>'+esc(op.farmerId)+'</b>'+(op.plot?' แปลง '+op.plot:'')+' ต.'+esc(op.tambon||'-')+' · '+num(op.rai,1)+' ไร่ · รับ '+thDate(op.receiveDate)+(op.dist!=null?' · ห่าง '+dupDist(op.dist):'')+(op.actual?' (พิกัดจริง)':'');}).join('<br>')+'</td>'+
+        '<td><select class="inp" data-dup="'+o.i+'">'+sg.options.map(function(op){var v='add:'+op.farmerId;return '<option value="'+v+'"'+(cur===v?' selected':'')+'>A รับเพิ่มในแปลง '+esc(op.farmerId)+'</option>';}).join('')+
+        '<option value="new"'+(cur==='new'?' selected':'')+'>B แปลงใหม่ (ต่างจุด/ต่างพื้นที่)</option><option value="skip"'+(cur==='skip'?' selected':'')+'>ข้าม ไม่นำเข้า</option></select>'+
+        '<div class="dup-why">💡 ระบบเสนอ: '+esc(sg.reason)+'</div></td></tr>';}).join('')+'</tbody></table></div></div>';
+}
+function bindDupPanel(){
+  $$('#impResult [data-dup]').forEach(function(sel){sel.onchange=function(){S.dupAct[sel.dataset.dup]=sel.value;};});
+  $$('#impResult [data-dupall]').forEach(function(b){b.onclick=function(){var m=b.dataset.dupall;
+    (S.dupRows||[]).forEach(function(o){S.dupAct[o.i]=m==='sug'?dupDefault(o.x._sug):m;});
+    $$('#impResult [data-dup]').forEach(function(sel){sel.value=S.dupAct[sel.dataset.dup];});};});
+}
+function dupActions(){
+  if(!S.dupRows||!S.preview||!S.parsed||S.preview.rows.length!==S.parsed.rows.length)return null;
+  var a={};S.dupRows.forEach(function(o){a[o.i]=S.dupAct[o.i]||dupDefault(o.x._sug);});return a;
+}
+
+/* ---------------- รายละเอียดเกษตรกร: แปลง + ประวัติการรับท่อนพันธุ์ ---------------- */
+function plotPanel(D){
+  var rc=(D.receipts||[]).slice().sort(function(a,b){return new Date(a.receiveDate||0)-new Date(b.receiveDate||0);});
+  if(!D.plotNo&&rc.length<2&&!D.soil&&!D.others.length)return '';
+  var h='<div class="panel"><div class="panel-head"><h3>แปลงและการรับท่อนพันธุ์</h3><span class="spacer"></span>'+(D.plotNo?'<span class="tag root">แปลงที่ '+D.plotNo+'</span>':'')+
+    (D.soil&&SOIL[D.soil]?soilTag(D.soil)+'<span class="small muted">ดิน'+esc(SOIL[D.soil].n)+'</span>':'')+'</div>';
+  if(rc.length)h+='<div class="tbl-wrap"><table><thead><tr><th>วันรับ</th><th>ประเภท</th><th>รอบจัดส่ง</th><th>สถานที่</th><th class="num">ไร่</th><th class="num">ลำ</th><th class="num">ต้องคืน</th><th>หมายเหตุ</th></tr></thead><tbody>'+
+    rc.map(function(r){return '<tr><td>'+thDate(r.receiveDate)+'</td><td><span class="tag '+(r.kind==='รับเพิ่ม'?'amber':'')+'">'+esc(r.kind)+'</span></td><td>'+(r.provinceRound?'ที่ '+esc(r.provinceRound):'–')+'</td><td class="small">'+esc(r.deliveryPlace||'–')+'</td><td class="num">'+num(r.rai,1)+'</td><td class="num">'+num(r.stalks)+'</td><td class="num">'+num(r.returnTarget)+'</td><td class="small muted">'+esc(r.note||'')+'</td></tr>';}).join('')+'</tbody></table></div>';
+  if(D.others.length)h+='<p class="small" style="margin:10px 0 0">แปลง/การรับพันธุ์อื่นของคนเดียวกัน: '+D.others.map(function(o){return '<a href="#" onclick="openFarmer(\''+esc(o.farmerId)+'\');return false">'+esc(o.farmerId)+(o.plotNo?' แปลง '+esc(o.plotNo):'')+' ต.'+esc(o.tambon||'-')+' ('+num(o.rai,1)+' ไร่, '+thDate(o.receiveDate)+')</a>';}).join(' · ')+'</p>';
+  if(D.soil&&SOIL_ADVICE[D.soil])h+='<details style="margin-top:10px"><summary class="small"><b>คำแนะนำการปลูกตามความเหมาะสมของดิน</b></summary><div class="small"><p style="margin:6px 0 2px">'+esc(SOIL_ADVICE[D.soil].h)+'</p><ul style="margin:0;padding-left:18px">'+SOIL_ADVICE[D.soil].i.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div></details>';
+  return h+'</div>';
+}
+
+/* ---------------- แผนที่: ชั้นความเหมาะสมของดิน (กรมพัฒนาที่ดิน · Agri-Map) ---------------- */
+var SoilLayer=L.TileLayer.extend({
+  getTileUrl:function(c){
+    var ts=this.getTileSize(),nwP=c.scaleBy(ts),seP=nwP.add(ts),m=this._map;
+    var a=L.CRS.EPSG3857.project(m.unproject(nwP,c.z)),b=L.CRS.EPSG3857.project(m.unproject(seP,c.z));
+    return SOIL_URL+'/export?bbox='+[a.x,b.y,b.x,a.y].map(function(v){return v.toFixed(1);}).join(',')+'&bboxSR=3857&imageSR=3857&size='+ts.x+','+ts.y+
+      '&format=png32&transparent=true&dynamicLayers='+encodeURIComponent(SOIL_DYN)+'&f=image';
+  }
+});
+function buildSoilLayer(m){
+  MV.ly.soil=new SoilLayer('',{opacity:.65,maxZoom:19,maxNativeZoom:17,zIndex:250,attribution:'ความเหมาะสมของดิน © กรมพัฒนาที่ดิน (Agri-Map)'});
+  MV.soilLegend=L.control({position:'bottomleft'});
+  MV.soilLegend.onAdd=function(){var d=L.DomUtil.create('div','map-legend');d.innerHTML='<b>ความเหมาะสมของดินสำหรับมันสำปะหลัง</b>'+
+    ['S1','S2','S3','N'].map(function(k){return '<div><i style="background:'+SOIL[k].c+';border-radius:3px"></i>'+k+' '+SOIL[k].n+'</div>';}).join('')+'<div class="small" style="opacity:.75">คลิกพื้นที่เพื่อดูคำแนะนำ · ที่มา: กรมพัฒนาที่ดิน</div>';return d;};
+  $('#mlSoil').addEventListener('change',function(){
+    var on=this.checked;$('#mlSoilOpWrap').style.display=on?'':'none';
+    if(on){m.addLayer(MV.ly.soil);MV.soilLegend.addTo(m);}else{m.removeLayer(MV.ly.soil);MV.soilLegend.remove();m.closePopup();}
+    syncMapLayers();
+  });
+  $('#mlSoilOp').oninput=function(){MV.ly.soil.setOpacity(this.value/100);};
+  m.on('click',function(e){if(e.originalEvent&&e.originalEvent._soilDone)return;if(m.hasLayer(MV.ly.soil))soilPopup(e.latlng,'');});
+}
+function soilAdviceHtml(k){var a=SOIL_ADVICE[k];if(!a)return '';return '<ul>'+a.i.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul>';}
+function soilPopup(ll,extra){
+  var m=MV.map,pop=L.popup({maxWidth:340}).setLatLng(ll).setContent('<div class="soil-pop">'+(extra?extra+'<hr style="border:0;border-top:1px solid #ddd">':'')+'กำลังตรวจความเหมาะสมของดิน…</div>').openOn(m);
+  var url=SOIL_URL+'/0/query?geometry='+ll.lng.toFixed(6)+','+ll.lat.toFixed(6)+'&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SUIT,BOUNDARY_AREA_RAI&returnGeometry=false&f=json';
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    var k=d.features&&d.features[0]?String(d.features[0].attributes.SUIT||'').trim():'';
+    var near=(S.dash&&S.dash.points||[]).filter(function(p){return Math.abs(p.lat-ll.lat)<0.01&&Math.abs(p.lon-ll.lng)<0.01;}).length;
+    var h='<div class="soil-pop">'+(extra?extra+'<hr style="border:0;border-top:1px solid #ddd">':'');
+    if(SOIL[k])h+='<h4>ความเหมาะสมของดินสำหรับมันสำปะหลัง</h4><span class="cls" style="background:'+SOIL[k].c+'">'+k+' · '+SOIL[k].n+'</span><p style="margin:6px 0 0">'+esc(SOIL_ADVICE[k].h)+'</p>'+soilAdviceHtml(k);
+    else h+='<h4>ไม่มีข้อมูลความเหมาะสมของดิน ณ จุดนี้</h4><p class="small" style="margin:4px 0 0">อาจเป็นพื้นที่ชุมชน แหล่งน้ำ หรือพื้นที่ป่า</p>';
+    h+='<p class="small" style="margin:6px 0 0;opacity:.8">'+(near?'มีแปลงเกษตรกรในรัศมี ~1 กม. '+near+' แปลง · ':'')+'ที่มา: กรมพัฒนาที่ดิน (Agri-Map) · ควรวิเคราะห์ดินก่อนปลูก</p></div>';
+    pop.setContent(h);
+  }).catch(function(){pop.setContent('<div class="soil-pop">'+(extra||'')+'<p>เชื่อมต่อบริการแผนที่ดินของกรมพัฒนาที่ดินไม่ได้ ลองใหม่อีกครั้ง</p></div>');});
+}
+/* ให้ทุกแปลงมีผลตรวจดิน (ตรวจเฉพาะที่ยังไม่มี ครั้งละไม่เกิน 40–120 แปลง) */
+function ensureSoilChecked(){
+  if(MV.soilAsked||!S.dash)return;
+  var miss=(S.dash.points||[]).filter(function(p){return !p.soil;}).length;
+  if(!miss)return;MV.soilAsked=true;
+  api('soilRefresh').then(function(r){
+    if(r&&r.checked)api('dashboard',filt()).then(function(d){S.dash=d;drawMapPoints();}).catch(function(){});
+  }).catch(function(){});
+}
+
+/* ---------------- รายงานผู้บริหาร ---------------- */
+var EXC={};
+function exScopeText(d){var f=filt(),p=[];if(f.provinceRound)p.push('รอบจัดส่งที่ '+f.provinceRound);if(f.district)p.push('อำเภอ'+f.district);return p.length?p.join(' · '):'ทั้งจังหวัด · ทุกรอบจัดส่ง';}
+function loadExec(){
+  $('#execWrap').innerHTML='<div class="loading">กำลังจัดทำรายงาน…</div>';
+  api('dashboard',filt()).then(function(d){S.exec=d;renderExec(d);}).catch(function(e){$('#execWrap').innerHTML='';fail(e);});
+}
+function exKpi(ic,v,l,s,cls,bar){return '<div class="ex-kpi '+(cls||'')+'"><div class="ic">'+ic+'</div><div class="v">'+v+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':'')+(bar!=null?'<div class="bar"><span style="width:'+Math.min(100,bar)+'%"></span></div>':'')+'</div>';}
+function thMonth(k){var a=String(k).split('-');if(a.length<2)return k;return new Date(Number(a[0]),Number(a[1])-1,1).toLocaleDateString('th-TH',{month:'short',year:'2-digit'});}
+function execInsights(d){
+  var k=d.kpi,F=k.farmers||0,ex=d.exec||{},ins=[],act=[];
+  var lp=pct(k.linked,F),sp=pct(k.s1,F);
+  var dl=(d.byDistrict||[]).filter(function(x){return x.farmers>=3;}).map(function(x){return {d:x.district,s:pct(x.s1,x.farmers),l:pct(x.linked,x.farmers),o:x.overdue,n:x.farmers};});
+  ins.push(['👨‍🌾','เกษตรกร <b>'+num(k.persons||F)+'</b> ราย '+num(k.plots||F)+' แปลง พื้นที่ <b>'+num(k.rai,1)+'</b> ไร่ ได้รับท่อนพันธุ์รวม '+num(k.stalks)+' ลำ']);
+  ins.push(['📱','ลงทะเบียน LINE แล้ว <b>'+lp+'%</b> ('+num(k.linked)+' จาก '+num(F)+' แปลง)']);
+  if(dl.length>1){
+    var bySp=dl.slice().sort(function(a,b){return a.s-b.s;}),lo=bySp[0],hi=bySp[bySp.length-1];
+    ins.push(['📍','แจ้งปลูกพร้อมพิกัดแล้ว <b>'+sp+'%</b> · สูงสุด อ.'+esc(hi.d)+' '+hi.s+'% · ต่ำสุด อ.'+esc(lo.d)+' '+lo.s+'%']);
+    if(lo.s<60)act.push(['🎯','เร่งติดตามการแจ้งปลูกและพิกัดแปลงใน อ.'+esc(lo.d)+' (แจ้งแล้ว '+lo.s+'%) ผ่านเจ้าหน้าที่อำเภอ/ผู้นำชุมชน']);
+  } else ins.push(['📍','แจ้งปลูกพร้อมพิกัดแล้ว <b>'+sp+'%</b> ('+num(k.s1)+' แปลง)']);
+  if(k.overdue){var top=dl.slice().sort(function(a,b){return b.o-a.o;})[0];
+    ins.push(['⏰','เลยกำหนดส่งรายงาน <b>'+num(k.overdue)+'</b> แปลง ('+pct(k.overdue,F)+'%)'+(top&&top.o?' มากที่สุดที่ อ.'+esc(top.d)+' '+top.o+' แปลง':'')]);
+    act.push(['📞','ให้เจ้าหน้าที่อำเภอโทรติดตามรายชื่อที่เลยกำหนด (ดูได้ทันทีจากเมนูเจ้าหน้าที่ "เลยกำหนด" ใน LINE OA)']);}
+  if(F&&lp<85)act.push(['📲','ช่วยเกษตรกรที่ยังไม่ลงทะเบียน LINE '+num(F-k.linked)+' แปลง ณ จุดแจกพันธุ์ หรือให้ลูกหลานลงทะเบียนแทน']);
+  var noDoae=Math.max(0,(k.s1||0)-(k.doae||0));
+  if(noDoae)act.push(['📝','ติดตามการขึ้นทะเบียนเกษตรกร (ทบก.) ระบุพันธุ์ "อิทธิ" อีก '+num(noDoae)+' แปลงที่ปลูกแล้วแต่ยังไม่แจ้ง']);
+  if(k.cmd||k.suspect){ins.push(['🔴','แจ้งพบอาการใบด่าง <b>'+num(k.cmd)+'</b> แปลง สงสัย '+num(k.suspect)+' แปลง']);
+    act.push(['🧪','ลงตรวจยืนยันแปลงที่พบ/สงสัยใบด่าง ถอนทำลายต้นที่เป็นโรค และห้ามนำไปขยายพันธุ์ต่อ']);}
+  else if(k.s2||k.s3)ins.push(['🟢','ยังไม่พบรายงานโรคใบด่างในแปลงที่ส่งรายงานติดตาม']);
+  var so=ex.soil||{},sT=(so.S1||0)+(so.S2||0)+(so.S3||0)+(so.N||0);
+  if(sT){var bad=(so.S3||0)+(so.N||0);
+    ins.push(['🌍','แปลงตั้งอยู่บนดินเหมาะสมสูง–ปานกลาง (S1–S2) <b>'+pct((so.S1||0)+(so.S2||0),sT)+'%</b> · เหมาะสมน้อย/ไม่เหมาะสม '+pct(bad,sT)+'% ('+num(bad)+' แปลง)']);
+    if(bad)act.push(['🧑‍🌾','ส่งคำแนะนำการจัดการดินให้ '+num(bad)+' แปลงในพื้นที่ S3/N (เพิ่มอินทรียวัตถุ ยกร่องระบายน้ำ) และแนะนำวิเคราะห์ดินกับสถานีพัฒนาที่ดิน']);}
+  var o=d.outcome||{};
+  if(o.survivalAvg!=null){ins.push(['🌿','อัตรารอดเฉลี่ยที่ 4 เดือน <b>'+Math.round(o.survivalAvg)+'%</b> จาก '+num(o.survivalN)+' แปลงที่รายงาน']);
+    if(o.survivalAvg<70)act.push(['💧','อัตรารอดต่ำกว่า 70% ควรตรวจคุณภาพท่อนพันธุ์ ระยะเวลาเก็บรักษาก่อนปลูก และความชื้นดินขณะปลูก']);}
+  if(o.yieldAvg!=null)ins.push(['📈','ผลผลิตเฉลี่ย <b>'+num(o.yieldAvg,2)+'</b> ตัน/ไร่ ('+num(o.yieldN)+' แปลง)']);
+  if(k.returnTarget&&k.returned)ins.push(['♻️','คืน/ขยายพันธุ์ต่อแล้ว '+num(k.returned)+' ลำ ('+pct(k.returned,k.returnTarget)+'% ของเป้า '+num(k.returnTarget)+' ลำ)']);
+  var rc=ex.receipts||{};
+  if(rc.add||ex.multiPlotPersons)ins.push(['📦','รับท่อนพันธุ์เพิ่มในแปลงเดิม '+num(rc.add||0)+' ครั้ง (+'+num(rc.addRai||0,1)+' ไร่) · เกษตรกรที่มีมากกว่า 1 แปลง '+num(ex.multiPlotPersons||0)+' ราย']);
+  if(!act.length)act.push(['✅','ผลการดำเนินงานเป็นไปตามแผน ติดตามรายงานรอบถัดไปตามกำหนด']);
+  return {ins:ins.slice(0,8),act:act.slice(0,6)};
+}
+function renderExec(d){
+  var k=d.kpi,F=k.farmers||0,ex=d.exec||{},o=d.outcome||{};
+  if(!F){$('#execWrap').innerHTML='<div class="panel"><div class="empty">ยังไม่มีข้อมูลในขอบเขตที่เลือก</div></div>';return;}
+  var I=execInsights(d),so=ex.soil||{},sT=(so.S1||0)+(so.S2||0)+(so.S3||0)+(so.N||0);
+  var steps=[['รับท่อนพันธุ์',F,F],['ลงทะเบียน LINE',k.linked,F],['แจ้งปลูก + พิกัด',k.s1,F],['ขึ้นทะเบียน (ยืนยัน)',k.doaeOk,F],['รายงาน 4 เดือน',k.s2,F],['รายงาน 8 เดือน',k.s3,F],['คืน/ขยายครบ',o.returnDone||0,F]];
+  var h='<div class="paper" id="execPaper">'+
+    '<div class="ex-head"><div><div class="t1">ระบบติดตามท่อนพันธุ์มันสำปะหลังต้านทานโรคใบด่าง จังหวัดกำแพงเพชร · LINE OA @051xwjic</div>'+
+      '<h1>รายงานสรุปผลการดำเนินงาน<br>สำหรับผู้บริหาร</h1><div class="proj">โครงการสนับสนุนท่อนพันธุ์มันสำปะหลังคุณภาพดีของกรมการค้าภายใน ประจำปี 2569<br>สมาคมชาวไร่มันสำปะหลังแห่งประเทศไทย ร่วมกับ สำนักงานเกษตรจังหวัดกำแพงเพชร</div></div>'+
+      '<div class="meta"><b>'+esc(exScopeText(d))+'</b>ข้อมูล ณ '+thDT(d.generatedAt)+'</div></div>'+
+    '<div class="ex-body">'+
+    '<div class="ex-kpis">'+
+      exKpi('👨‍🌾',num(k.persons||F),'เกษตรกร (ราย)',num(k.plots||F)+' แปลง')+
+      exKpi('🌱',num(k.rai,1),'พื้นที่ปลูก (ไร่)','ท่อนพันธุ์ '+num(k.stalks)+' ลำ')+
+      exKpi('📱',pct(k.linked,F)+'%','ลงทะเบียน LINE',num(k.linked)+' แปลง','',pct(k.linked,F))+
+      exKpi('📍',pct(k.s1,F)+'%','แจ้งปลูก + พิกัดแปลง',num(k.s1)+' แปลง','',pct(k.s1,F))+
+      exKpi('⏰',num(k.overdue),'เลยกำหนดส่งรายงาน',pct(k.overdue,F)+'% ของแปลงทั้งหมด',k.overdue?'warn':'')+
+      exKpi('🔴',num(k.cmd),'แจ้งพบใบด่าง','สงสัย '+num(k.suspect)+' แปลง',k.cmd?'bad':'')+'</div>'+
+    '<div class="ex-row c21"><div class="ex-card"><h3><span class="n">1</span>เส้นทางของท่อนพันธุ์</h3><p class="sub">ร้อยละของแปลงที่ผ่านแต่ละขั้น นับจากวันรับท่อนพันธุ์</p><div class="ex-funnel">'+
+      steps.map(function(s){var p=pct(s[1],s[2]);return '<div class="st"><span>'+s[0]+'</span><div class="tr"><span style="width:'+Math.max(p,1)+'%"></span></div><span class="pc">'+p+'%<small>'+num(s[1])+' แปลง</small></span></div>';}).join('')+'</div></div>'+
+      '<div class="ex-card"><h3><span class="n">2</span>ความคืบหน้ารายงานแต่ละรอบ</h3><p class="sub">ส่งแล้ว / ถึงรอบรอส่ง / เลยกำหนด / ยังไม่ถึงรอบ</p><canvas id="cExStage" height="210"></canvas></div></div>'+
+    '<div class="ex-row c2"><div class="ex-card"><h3><span class="n">3</span>ผลการดำเนินงานรายอำเภอ</h3><p class="sub">จำนวนแปลง (แท่ง) และร้อยละแจ้งปลูกพร้อมพิกัด (เส้น)</p><canvas id="cExDist" height="230"></canvas></div>'+
+      '<div class="ex-card"><h3><span class="n">4</span>ความเหมาะสมของดินในแปลงปลูก</h3><p class="sub">ตรวจจากพิกัดแปลงกับแผนที่ความเหมาะสมของดินสำหรับมันสำปะหลัง (กรมพัฒนาที่ดิน)</p>'+
+        (sT?'<div style="display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:center"><div style="height:190px;position:relative"><canvas id="cExSoil"></canvas></div><div>'+
+          ['S1','S2','S3','N'].map(function(c){return '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><i style="width:14px;height:14px;border-radius:4px;background:'+SOIL[c].c+';display:inline-block"></i><b style="width:26px">'+c+'</b><span style="flex:1">'+SOIL[c].n+'</span><b>'+num(so[c]||0)+'</b><span class="muted" style="width:44px;text-align:right">'+pct(so[c]||0,sT)+'%</span></div>';}).join('')+
+          ((so.NA||0)+(so.none||0)?'<div class="small muted">ไม่มีข้อมูล/ยังไม่ตรวจ '+num((so.NA||0)+(so.none||0))+' แปลง</div>':'')+'</div></div>':'<div class="empty small">ยังไม่มีผลตรวจดินรายแปลง (ระบบตรวจให้อัตโนมัติทุกคืน หรือเปิดแท็บแผนที่แปลง)</div>')+'</div></div>'+
+    '<div class="ex-row c2"><div class="ex-card"><h3><span class="n">5</span>การรับท่อนพันธุ์รายเดือน</h3><p class="sub">จำนวนลำที่ส่งมอบ (แท่ง) และจำนวนครั้งที่รับ (เส้น) จากประวัติการรับท่อนพันธุ์</p><canvas id="cExMonth" height="210"></canvas></div>'+
+      '<div class="ex-card"><h3><span class="n">6</span>ผลลัพธ์ของโครงการ</h3><p class="sub">จากรายงานของเกษตรกรผ่าน LINE และการบันทึกของเจ้าหน้าที่</p><div class="ex-kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">'+
+        exKpi('🌿',o.survivalAvg==null?'–':Math.round(o.survivalAvg)+'%','อัตรารอด 4 เดือน',num(o.survivalN)+' แปลง')+
+        exKpi('📈',o.yieldAvg==null?'–':num(o.yieldAvg,2),'ผลผลิต (ตัน/ไร่)',o.yieldN?num(o.yieldN)+' แปลง':'ยังไม่เก็บเกี่ยว')+
+        exKpi('♻️',pct(k.returned,k.returnTarget)+'%','คืน/ขยายพันธุ์ต่อ',num(k.returned)+' / '+num(k.returnTarget)+' ลำ','',pct(k.returned,k.returnTarget))+'</div>'+
+        '<canvas id="cExGrowth" height="120"></canvas></div></div>'+
+    '<div class="ex-ins"><div class="ex-card"><h3>🔎 ข้อค้นพบสำคัญ</h3><ul>'+I.ins.map(function(x){return '<li><i>'+x[0]+'</i>'+x[1]+'</li>';}).join('')+'</ul></div>'+
+      '<div class="ex-card act"><h3>🧭 ข้อเสนอแนะเพื่อดำเนินการ</h3><ul>'+I.act.map(function(x){return '<li><i>'+x[0]+'</i>'+x[1]+'</li>';}).join('')+'</ul></div></div>'+
+    '<div class="ex-card" style="margin-bottom:16px"><h3><span class="n">7</span>สรุปรายอำเภอ</h3><p class="sub">เรียงตามจำนวนแปลง</p><table class="ex-tbl"><thead><tr><th>อำเภอ</th><th class="num">แปลง</th><th class="num">ไร่</th><th class="num">ลำ</th><th class="num">LINE</th><th>แจ้งปลูก + พิกัด</th><th class="num">4 เดือน</th><th class="num">เลยกำหนด</th><th class="num">ใบด่าง</th><th class="num">คืน/ขยาย</th><th>ความเหมาะสมดิน</th></tr></thead><tbody>'+
+      (d.byDistrict||[]).map(function(x){var p=pct(x.s1,x.farmers),sd=(ex.soilByDistrict||{})[x.district]||{},st=(sd.S1||0)+(sd.S2||0)+(sd.S3||0)+(sd.N||0);
+        return '<tr><td><b>'+esc(x.district)+'</b></td><td class="num">'+num(x.farmers)+'</td><td class="num">'+num(x.rai,1)+'</td><td class="num">'+num(x.stalks)+'</td><td class="num">'+pct(x.linked,x.farmers)+'%</td>'+
+          '<td><span class="mini" style="width:'+Math.max(2,p*0.9)+'px"></span>'+p+'%</td><td class="num">'+pct(x.s2,x.farmers)+'%</td><td class="num">'+(x.overdue||0)+'</td><td class="num">'+(x.cmd||0)+'</td><td class="num">'+pct(x.returned,x.returnTarget)+'%</td>'+
+          '<td>'+(st?'<div class="ex-soilbar" title="S1 '+(sd.S1||0)+' · S2 '+(sd.S2||0)+' · S3 '+(sd.S3||0)+' · N '+(sd.N||0)+'">'+['S1','S2','S3','N'].map(function(c){return sd[c]?'<span style="width:'+(sd[c]*100/st)+'%;background:'+SOIL[c].c+'"></span>':'';}).join('')+'</div>':'<span class="muted">–</span>')+'</td></tr>';}).join('')+
+      '</tbody></table><div class="ex-legend">'+['S1','S2','S3','N'].map(function(c){return '<span><i style="background:'+SOIL[c].c+'"></i>'+c+' '+SOIL[c].n+'</span>';}).join('')+'</div></div>'+
+    '</div><div class="ex-foot"><div><b>ที่มาของข้อมูล</b> ระบบ LINE OA ติดตามท่อนพันธุ์ (@051xwjic) · รายงานจากเกษตรกรและเจ้าหน้าที่ · ความเหมาะสมของดิน: กรมพัฒนาที่ดิน (Agri-Map)</div><div style="text-align:right;white-space:nowrap">จัดทำ '+thDT(new Date())+'<br>สำนักงานเกษตรจังหวัดกำแพงเพชร</div></div></div>';
+  $('#execWrap').innerHTML=h;
+  drawExecCharts(d);
+}
+function exChart(id,cfg){if(EXC[id])EXC[id].destroy();var el=document.getElementById(id);if(!el)return;cfg.options=cfg.options||{};cfg.options.animation=false;cfg.options.responsive=true;EXC[id]=new Chart(el,cfg);}
+function drawExecCharts(d){
+  Chart.defaults.font.family="'IBM Plex Sans Thai',sans-serif";Chart.defaults.color='#4A5D4F';
+  var ex=d.exec||{},sp=ex.stageProgress||[];
+  exChart('cExStage',{type:'bar',data:{labels:sp.map(function(x){return STAGE_SHORT[x.code]||x.name;}),datasets:[
+    {label:'ส่งแล้ว',data:sp.map(function(x){return x.done;}),backgroundColor:'#2F6B3A'},
+    {label:'ถึงรอบ รอส่ง',data:sp.map(function(x){return x.open;}),backgroundColor:'#A6D96A'},
+    {label:'เลยกำหนด',data:sp.map(function(x){return x.overdue;}),backgroundColor:'#D7191C'},
+    {label:'ยังไม่ถึงรอบ',data:sp.map(function(x){return x.notYet;}),backgroundColor:'#DCE3DC'}]},
+    options:{indexAxis:'y',plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},scales:{x:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:'#EEF3EE'}},y:{stacked:true,grid:{display:false}}}}});
+  var bd=(d.byDistrict||[]);
+  exChart('cExDist',{data:{labels:bd.map(function(x){return x.district;}),datasets:[
+    {type:'bar',label:'แปลง',data:bd.map(function(x){return x.farmers;}),backgroundColor:'#4E8F58',borderRadius:4,yAxisID:'y'},
+    {type:'line',label:'% แจ้งปลูก',data:bd.map(function(x){return pct(x.s1,x.farmers);}),borderColor:'#C98A12',backgroundColor:'#C98A12',pointRadius:3,yAxisID:'y1'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#EEF3EE'}},y1:{position:'right',min:0,max:100,ticks:{callback:function(v){return v+'%';}},grid:{display:false}},x:{grid:{display:false},ticks:{font:{size:10},maxRotation:45,minRotation:30}}}}});
+  var so=ex.soil||{};
+  if(document.getElementById('cExSoil'))exChart('cExSoil',{type:'doughnut',data:{labels:['S1','S2','S3','N'].map(function(c){return c+' '+SOIL[c].n;}),datasets:[{data:['S1','S2','S3','N'].map(function(c){return so[c]||0;}),backgroundColor:['S1','S2','S3','N'].map(function(c){return SOIL[c].c;}),borderWidth:2,borderColor:'#fff'}]},
+    options:{cutout:'58%',maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  var bm=ex.receiptsByMonth||[];
+  exChart('cExMonth',{data:{labels:bm.map(function(x){return thMonth(x.month);}),datasets:[
+    {type:'bar',label:'ลำที่ส่งมอบ',data:bm.map(function(x){return x.stalks;}),backgroundColor:'#8B5E34',borderRadius:4,yAxisID:'y'},
+    {type:'line',label:'จำนวนครั้งที่รับ',data:bm.map(function(x){return x.n;}),borderColor:'#2F6B3A',backgroundColor:'#2F6B3A',pointRadius:3,yAxisID:'y1'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#EEF3EE'}},y1:{position:'right',beginAtZero:true,ticks:{precision:0},grid:{display:false}},x:{grid:{display:false}}}}});
+  var g=d.growth||{},gl=Object.keys(g),gc={'งอกดี โตดี':'#2F6B3A','ดีมาก':'#2F6B3A','งอกบางส่วน':'#8DB78F','ปานกลาง':'#8DB78F','งอกไม่ดี/ตาย':'#B83227','ไม่ดี':'#B83227','ยังไม่ได้ปลูก':'#B9C7BA'};
+  exChart('cExGrowth',{type:'bar',data:{labels:gl,datasets:[{data:gl.map(function(x){return g[x];}),backgroundColor:gl.map(function(x){return gc[x]||'#8B5E34';}),borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},title:{display:true,text:'การงอก/การเจริญเติบโตล่าสุด (แปลง)',font:{size:12}}},scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{grid:{display:false}}}}});
+}
+/* ส่งออก */
+function exName(){var f=filt();return 'รายงานผู้บริหาร_ท่อนพันธุ์มัน'+(f.district?'_'+f.district:'')+(f.provinceRound?'_รอบ'+f.provinceRound:'')+'_'+new Date().toISOString().slice(0,10);}
+function exCanvas(){
+  var el=$('#execPaper');if(!el){toast('เปิดรายงานก่อน',true);return Promise.reject(new Error('no report'));}
+  var ready=document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve();
+  return ready.then(function(){return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false,windowWidth:el.scrollWidth+40});});
+}
+function exBusy(b,on){b.disabled=on;b.dataset.t=b.dataset.t||b.textContent;b.textContent=on?'กำลังสร้าง…':b.dataset.t;}
+$('#exPng').onclick=function(){var b=this;exBusy(b,true);exCanvas().then(function(c){c.toBlob(function(bl){dl(bl,exName()+'.png');exBusy(b,false);},'image/png');}).catch(function(e){exBusy(b,false);if(e.message!=='no report')fail(e);});};
+$('#exPdf').onclick=function(){
+  var b=this;exBusy(b,true);
+  var el=$('#execPaper');
+  exCanvas().then(function(c){
+    var pdf=new jspdf.jsPDF({orientation:'p',unit:'mm',format:'a4',compress:true});
+    var W=210,H=297,m=8,iw=W-2*m,pxmm=c.width/iw,pageH=Math.floor((H-2*m)*pxmm);
+    // จุดตัดหน้าที่ขอบของแต่ละส่วน ไม่ให้ตัดกลางกราฟ/ตาราง
+    var scale=c.width/el.offsetWidth,top0=el.getBoundingClientRect().top,cuts=[];
+    $$('.ex-body>*,.ex-foot',el).forEach(function(x){cuts.push(Math.round((x.getBoundingClientRect().top-top0)*scale));});
+    cuts.push(c.height);cuts.sort(function(a,b){return a-b;});
+    var y=0,pg=0;
+    while(y<c.height-2){
+      var lim=y+pageH,cut=cuts.filter(function(v){return v>y+pageH*0.35&&v<=lim;}).pop()||Math.min(lim,c.height);
+      var h=cut-y,t=document.createElement('canvas');t.width=c.width;t.height=h;
+      var cx=t.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,t.width,h);cx.drawImage(c,0,y,c.width,h,0,0,c.width,h);
+      if(pg)pdf.addPage();
+      pdf.addImage(t.toDataURL('image/jpeg',0.93),'JPEG',m,m,iw,h/pxmm);
+      pdf.setFontSize(8);pdf.setTextColor(140);pdf.text(String(pg+1),W-m,H-3,{align:'right'});
+      y=cut;pg++;
+    }
+    pdf.save(exName()+'.pdf');exBusy(b,false);
+  }).catch(function(e){exBusy(b,false);if(e.message!=='no report')fail(e);});
+};
+function exDistrictRows(d){
+  var ex=d.exec||{};
+  return (d.byDistrict||[]).map(function(x){var sd=(ex.soilByDistrict||{})[x.district]||{};return {
+    'อำเภอ':x.district,'แปลง':x.farmers,'ไร่':Math.round(x.rai*100)/100,'ลำ':x.stalks,'ลงทะเบียน LINE':x.linked,'LINE (%)':pct(x.linked,x.farmers),
+    'แจ้งปลูก+พิกัด':x.s1,'แจ้งปลูก (%)':pct(x.s1,x.farmers),'รายงาน 4 เดือน':x.s2,'รายงาน 8 เดือน':x.s3,'ขึ้นทะเบียนยืนยัน':x.doaeOk,'เลยกำหนด':x.overdue,
+    'พบใบด่าง':x.cmd,'คืน/ขยายแล้ว (ลำ)':x.returned,'ต้องคืน (ลำ)':x.returnTarget,'คืน/ขยาย (%)':pct(x.returned,x.returnTarget),
+    'ดิน S1':sd.S1||0,'ดิน S2':sd.S2||0,'ดิน S3':sd.S3||0,'ดิน N':sd.N||0,'ดิน ไม่มีข้อมูล':(sd.NA||0)+(sd.none||0)};});
+}
+function exKpiRows(d){
+  var k=d.kpi,F=k.farmers||0,o=d.outcome||{},so=(d.exec||{}).soil||{};
+  return [['ตัวชี้วัด','ค่า','หน่วย/หมายเหตุ'],['เกษตรกร',k.persons||F,'ราย'],['แปลง',k.plots||F,'แปลง'],['พื้นที่',Math.round(k.rai*100)/100,'ไร่'],['ท่อนพันธุ์ที่ส่งมอบ',k.stalks,'ลำ'],
+    ['ลงทะเบียน LINE',k.linked,pct(k.linked,F)+'%'],['แจ้งปลูก+พิกัด',k.s1,pct(k.s1,F)+'%'],['ขึ้นทะเบียนเกษตรกร (เจ้าหน้าที่ยืนยัน)',k.doaeOk,'แจ้ง '+k.doae],
+    ['รายงาน 4 เดือน',k.s2,pct(k.s2,F)+'%'],['รายงาน 8 เดือน',k.s3,pct(k.s3,F)+'%'],['เลยกำหนดส่ง',k.overdue,'แปลง'],['พบใบด่าง',k.cmd,'สงสัย '+k.suspect],
+    ['อัตรารอดเฉลี่ย 4 เดือน',o.survivalAvg==null?'':Math.round(o.survivalAvg),'%'],['ผลผลิตเฉลี่ย',o.yieldAvg==null?'':o.yieldAvg,'ตัน/ไร่'],
+    ['คืน/ขยายพันธุ์แล้ว',k.returned,'จาก '+k.returnTarget+' ลำ'],['ดิน S1/S2/S3/N',[so.S1||0,so.S2||0,so.S3||0,so.N||0].join('/'),'แปลง']];
+}
+$('#exCsv').onclick=function(){
+  var d=S.exec;if(!d)return toast('เปิดรายงานก่อน',true);
+  var rows=[['รายงานสรุปสำหรับผู้บริหาร — โครงการสนับสนุนท่อนพันธุ์มันสำปะหลังคุณภาพดี ปี 2569'],['ขอบเขต',exScopeText(d)],['ข้อมูล ณ',thDT(d.generatedAt)],[]].concat(exKpiRows(d)).concat([[]]);
+  var dr=exDistrictRows(d);if(dr.length){var hd=Object.keys(dr[0]);rows.push(hd);dr.forEach(function(r){rows.push(hd.map(function(x){return r[x];}));});}
+  dl(new Blob([toCsv(rows)],{type:'text/csv'}),exName()+'.csv');
+};
+$('#exXlsx').onclick=function(){
+  var d=S.exec;if(!d)return toast('เปิดรายงานก่อน',true);
+  var b=this;exBusy(b,true);
+  api('farmers',filt()).then(function(list){
+    var ex=d.exec||{},wb=XLSX.utils.book_new();
+    var I=execInsights(d),strip=function(s){return String(s).replace(/<[^>]+>/g,'');};
+    var sum=[['รายงานสรุปสำหรับผู้บริหาร'],['โครงการสนับสนุนท่อนพันธุ์มันสำปะหลังคุณภาพดีของกรมการค้าภายใน ประจำปี 2569'],['ขอบเขต',exScopeText(d)],['ข้อมูล ณ',thDT(d.generatedAt)],[]]
+      .concat(exKpiRows(d)).concat([[],['ข้อค้นพบสำคัญ']]).concat(I.ins.map(function(x){return [strip(x[1])];})).concat([[],['ข้อเสนอแนะ']]).concat(I.act.map(function(x){return [strip(x[1])];}));
+    var ws=XLSX.utils.aoa_to_sheet(sum);ws['!cols']=[{wch:44},{wch:18},{wch:22}];XLSX.utils.book_append_sheet(wb,ws,'สรุป');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(exDistrictRows(d)),'รายอำเภอ');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((d.byRound||[]).map(function(r){return {'รอบจัดส่ง':r.provinceRound,'รอบสมาคม':r.roundNo,'วันส่งมอบ':isoDate(r.receiveDate),'สถานที่':r.deliveryPlace,'แปลง':r.farmers,'ไร่':r.rai,'ลำ':r.stalks,'ลงทะเบียน LINE':r.linked,'แจ้งปลูก':r.s1,'เลยกำหนด':r.overdue,'คืน/ขยายแล้ว':r.returned,'ต้องคืน':r.returnTarget};})),'รายรอบจัดส่ง');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((ex.stageProgress||[]).map(function(x){return {'รอบรายงาน':x.name,'ส่งแล้ว':x.done,'ถึงรอบรอส่ง':x.open,'เลยกำหนด':x.overdue,'ยังไม่ถึงรอบ':x.notYet};})),'ความคืบหน้ารายงาน');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((ex.receiptsByMonth||[]).map(function(x){return {'เดือน':x.month,'ครั้ง':x.n,'รับเพิ่ม(ครั้ง)':x.add,'ไร่':x.rai,'ลำ':x.stalks};})),'รับท่อนพันธุ์รายเดือน');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((ex.topTambon||[]).map(function(x){return {'ตำบล':x.tambon,'อำเภอ':x.district,'แปลง':x.n,'ไร่':x.rai};})),'ตำบลที่มีแปลงมาก');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(list.map(function(f){var s=f.st;return {'รหัส':f.farmerId,'ชื่อ-สกุล':f.name,'แปลงที่':f.plotNo,'ตำบล':f.tambon,'อำเภอ':f.respDistrict,'รอบจัดส่ง':f.provinceRound,'วันส่งมอบ':isoDate(f.receiveDate),
+      'ไร่':Number(f.raiRequested)||0,'ลำ':Number(f.stalksReceived)||0,'ต้องคืน':Number(f.returnTarget)||0,'รับพันธุ์(ครั้ง)':Number(f.receiptCount)||1,'LINE':f.linked?'มี':'ไม่มี',
+      'แจ้งปลูก':s.done[0]===1?'ส่งแล้ว':s.done[0]===-1?'เลยกำหนด':'','4 เดือน':s.done[1]===1?'ส่งแล้ว':s.done[1]===-1?'เลยกำหนด':'','8 เดือน':s.done[2]===1?'ส่งแล้ว':s.done[2]===-1?'เลยกำหนด':'',
+      'ขึ้นทะเบียน':s.doaeOk?'ยืนยันแล้ว':s.doae?'แจ้งแล้ว':'','ใบด่าง':s.cmd||'','ต้นรอด(%)':s.survival,'ผลผลิต(ตัน/ไร่)':s.yieldPerRai,'คืน/ขยายแล้ว(ลำ)':s.returned,
+      'ความเหมาะสมดิน':f.soil&&SOIL[f.soil]?f.soil+' '+SOIL[f.soil].n:'','ถัดไป':s.nextName};})),'รายชื่อแปลง');
+    XLSX.writeFile(wb,exName()+'.xlsx');exBusy(b,false);
+  }).catch(function(e){exBusy(b,false);fail(e);});
+};
+
+</script>
+<script>
+/* ============================ v1.6 ============================ */
+/* ---- 1) ตัวเลขแจ้งเตือนแบบสด: ไม่ใช้ข้อมูลภาพรวมที่แคชไว้ ---- */
+var BADGE={busy:false,last:0};
+function setBadge(id,n){var b=$(id);if(!b)return;b.textContent=n||'';b.classList.toggle('hidden',!n);}
+function applyCounts(c){
+  S.counts=c;setBadge('#bVerify',c.pendingVerify);setBadge('#bPending',c.pendingQueue);
+  if(S.dash&&S.dash.kpi){S.dash.kpi.pendingVerify=c.pendingVerify;S.dash.pendingQueue=c.pendingQueue;}
+  $$('#dashBody .kpi').forEach(function(k){var l=k.querySelector('.l');if(l&&l.textContent==='รายงานรอตรวจ'){k.querySelector('.v').textContent=num(c.pendingVerify);var s=k.querySelector('.s');if(s)s.textContent='คิว LINE '+num(c.pendingQueue);}});
+}
+function refreshBadges(force){
+  if(!S.token||BADGE.busy)return;if(!force&&Date.now()-BADGE.last<3000)return;
+  BADGE.busy=true;BADGE.last=Date.now();
+  _apiV16('counts',{}).then(function(c){BADGE.busy=false;applyCounts(c);}).catch(function(){BADGE.busy=false;});
+}
+var _apiV16=api;
+api=function(action,payload){
+  var pr=_apiV16(action,payload);
+  if(/^(verifyReport|resolvePending|addReport|updateFarmer|importCommit|addVisit|bulkReplace|unlinkLine)$/.test(action))
+    pr.then(function(){refreshBadges(true);},function(){});
+  return pr;
+};
+var _renderDashV16=renderDash;
+renderDash=function(d){_renderDashV16(d);if(S.counts)applyCounts(S.counts);refreshBadges();};
+setInterval(function(){if(document.visibilityState==='visible')refreshBadges(true);},60000);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')refreshBadges(true);});
+
+/* ---- 2) สิทธิ์หน่วยงานสนับสนุนพันธุ์ (center · ศวพ.) ---- */
+var ROLE_TH={admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',officer:'เจ้าหน้าที่อำเภอ',viewer:'ผู้บริหาร/ผู้ดู',center:'หน่วยงานสนับสนุนพันธุ์ (ศวพ.)'};
+function isCenter(){return S.user&&S.user.role==='center';}
+function applyRoleUI(){
+  if(!S.user)return;
+  var lvl={viewer:1,center:1,officer:2,manager:3,admin:4}[S.user.role]||1;
+  $$('#tabs button[data-v="pending"]').forEach(function(b){b.classList.toggle('hidden',lvl<2);});
+  if(isCenter()){$('#who').textContent=(S.user.fullName||S.user.username)+' · '+(S.user.center||'หน่วยงานสนับสนุนพันธุ์');var fd=$('#fDistrict');if(fd){fd.disabled=false;}}
+  api('centers').then(function(list){var dl=$('#centerList');if(!dl){dl=document.createElement('datalist');dl.id='centerList';document.body.appendChild(dl);}dl.innerHTML=list.map(function(c){return '<option value="'+esc(c)+'">';}).join('');}).catch(function(){});
+  refreshBadges(true);
+}
+var _startV16=start;
+start=function(r){_startV16(r);applyRoleUI();};
+if(S.user)applyRoleUI();
+var _exScopeV16=exScopeText;
+exScopeText=function(d){var t=_exScopeV16(d);return isCenter()?(S.user.center||'ศูนย์')+' · '+t:t;};
+
+/* ---- 3) บันทึกการเยี่ยมแปลง / ผลตรวจทางวิชาการ ---- */
+function visitPanel(D){
+  var v=D.visits||[],h='<div class="panel"><div class="panel-head"><h3>การเยี่ยมแปลง / ผลตรวจทางวิชาการ ('+v.length+')</h3><span class="spacer"></span>'+
+    (D.center?'<span class="tag root">รับพันธุ์จาก '+esc(D.center)+'</span>':'')+(D.canVisit?'<button class="btn" id="btnVisit">+ บันทึกการเยี่ยมแปลง</button>':'')+'</div><div id="visitBox"></div>';
+  h+=v.length?v.map(function(x){return '<div class="rep"><div class="row"><b style="flex:1">'+thDate(x.visitedAt)+' · '+esc(x.org||'')+'</b><span class="small muted">'+esc(x.fullName||x.username)+'</span></div>'+
+    '<div class="small">'+[x.cmdStatus?'ใบด่าง: <b'+(x.cmdStatus==='พบใบด่าง'?' style="color:var(--red)"':'')+'>'+esc(x.cmdStatus)+'</b>':'',x.growth?'การเจริญเติบโต: '+esc(x.growth):'',x.survivalPct?'ต้นรอด ~'+esc(x.survivalPct)+'%':'',x.pests?'ศัตรูพืช: '+esc(x.pests):'',x.soilNote?'ดิน: '+esc(x.soilNote):''].filter(String).join(' · ')+'</div>'+
+    (x.recommendation?'<div class="small" style="margin-top:4px">💡 คำแนะนำ: '+esc(x.recommendation)+'</div>':'')+(x.followUp?'<div class="small muted">ติดตามต่อ: '+esc(x.followUp)+'</div>':'')+(x.note?'<div class="small muted">'+esc(x.note)+'</div>':'')+'</div>';}).join(''):'<div class="empty small">ยังไม่มีการบันทึกการเยี่ยมแปลง</div>';
+  return h+'</div>';
+}
+function bindVisit(D){
+  if(S.user.role==='viewer'||S.user.role==='center')$$('#dBody [name]').forEach(function(e){e.disabled=true;});
+  var b=$('#btnVisit');if(!b)return;
+  b.onclick=function(){
+    $('#visitBox').innerHTML='<div class="rep" style="background:var(--leaf-soft)"><div class="form">'+
+      '<label>วันที่เยี่ยมแปลง<input class="inp" id="vDate" type="date" value="'+isoDate(new Date())+'"></label>'+
+      '<label>อาการใบด่าง<select class="inp" id="vCmd"><option></option><option>ไม่พบ</option><option>สงสัย</option><option>พบใบด่าง</option></select></label>'+
+      '<label>การเจริญเติบโต<select class="inp" id="vGrow"><option></option><option>ดีมาก</option><option>ปานกลาง</option><option>ไม่ดี</option></select></label>'+
+      '<label>ต้นรอดประมาณ (%)<input class="inp" id="vSurv" type="number" min="0" max="100"></label>'+
+      '<label>ศัตรูพืช/โรคอื่น<input class="inp" id="vPest" placeholder="เช่น เพลี้ยแป้ง ไรแดง โคนเน่า"></label>'+
+      '<label>สภาพดิน/การจัดการ<input class="inp" id="vSoil" placeholder="เช่น ดินทราย น้ำขัง ไม่ยกร่อง"></label>'+
+      '<label>พิกัดที่ตรวจ (ถ้ามี)<input class="inp" id="vCoord" placeholder="16.4 99.5 หรือ X Y"></label>'+
+      '<label>ติดตามต่อ<input class="inp" id="vFollow" placeholder="เช่น ตรวจซ้ำ 2 สัปดาห์"></label></div>'+
+      '<label class="small" style="display:block;margin-top:8px">คำแนะนำที่ให้เกษตรกร<textarea class="inp" id="vRec" rows="3" style="width:100%"></textarea></label>'+
+      '<label class="small" style="display:block">หมายเหตุ<input class="inp" id="vNote" style="width:100%"></label>'+
+      '<div class="row" style="margin-top:10px"><button class="btn pri" id="vSave">บันทึก</button><button class="btn" onclick="$(\'#visitBox\').innerHTML=\'\'">ยกเลิก</button></div>'+
+      '<p class="small muted">บันทึกแยกจากรายงานของเกษตรกร ไม่เปลี่ยนสถานะการส่งรายงาน · ถ้าเลือก พบ/สงสัยใบด่าง ระบบแจ้งเจ้าหน้าที่อำเภอทาง LINE</p></div>';
+    $('#vSave').onclick=function(){
+      var p={farmerId:D.farmer.farmerId,visitedAt:$('#vDate').value,cmdStatus:$('#vCmd').value,growth:$('#vGrow').value,survivalPct:$('#vSurv').value,pests:$('#vPest').value,soilNote:$('#vSoil').value,coordText:$('#vCoord').value.trim(),followUp:$('#vFollow').value,recommendation:$('#vRec').value,note:$('#vNote').value};
+      if(!p.cmdStatus&&!p.growth&&!p.recommendation&&!p.note)return toast('กรอกผลการตรวจอย่างน้อย 1 ช่อง',true);
+      this.disabled=true;api('addVisit',p).then(function(){toast('บันทึกการเยี่ยมแปลงแล้ว');openFarmer(D.farmer.farmerId);}).catch(function(e){fail(e);$('#vSave').disabled=false;});
+    };
+  };
+}
+
+/* ---- 3b) คู่มือการปรับปรุงบำรุงดินและการจัดการผลิต (กรมวิชาการเกษตร / กรมพัฒนาที่ดิน) ---- */
+SOIL_ADVICE.S1.i=['รักษาอินทรียวัตถุ: ปุ๋ยคอก 500–1,000 กก./ไร่ หว่านแล้วไถกลบก่อนปลูก','ใส่ปุ๋ยเคมีตามเนื้อดิน (ดูตารางในคู่มือ) ช่วงอายุ 1–3 เดือน','ยกร่อง ระยะแถว 100–120 × ต้น 60–80 ซม. (1,600–2,600 ต้น/ไร่)','กำจัดวัชพืชอย่างน้อย 2 ครั้ง ช่วง 1–2 เดือนแรก'];
+SOIL_ADVICE.S2.i=['เพิ่มอินทรียวัตถุทุกปี: ปุ๋ยคอก/ปุ๋ยหมัก หรือไถกลบพืชปุ๋ยสด (ปอเทือง ถั่วพร้า) ช่วงออกดอก','ดินทราย: แบ่งใส่ปุ๋ย 2 ครั้ง ลดการสูญเสีย · ดิน pH < 5 หว่านโดโลไมท์ 100 กก./ไร่','พื้นที่น้ำขังช่วงฝนหนัก ยกร่องสูงระบายน้ำ','คลุมดินด้วยเศษพืชเก็บความชื้นช่วงฝนทิ้งช่วง'];
+SOIL_ADVICE.S3.i=['วิเคราะห์ดินก่อนปลูก แล้วปรับปรุงดินต่อเนื่องด้วยปุ๋ยอินทรีย์และพืชปุ๋ยสด','มีชั้นดินดาน ไถระเบิดดานทุก 3–5 ปี','ที่ลาดชัน ปลูกตามแนวระดับ ทำคันดินชะลอน้ำ ลดการชะล้างหน้าดิน','ดินตื้น/ทรายจัด เตรียมน้ำเสริม: ฝนน้อยกว่า 40 มม. ใน 6 สัปดาห์ ให้น้ำ ~40 มม. ทุก 2 สัปดาห์ (น้ำหยดดีที่สุด)'];
+SOIL_ADVICE.N.i=['ไม่แนะนำให้ปลูกมันสำปะหลัง เพราะเสี่ยงหัวเน่า/โคนเน่าเมื่อน้ำขัง และผลผลิตต่ำ','ถ้าจำเป็นต้องปลูก ยกร่องสูงตามแนวลาดให้น้ำระบาย ไถระเบิดดินดาน ปลูกหลังพ้นช่วงน้ำขัง','ปรึกษาสถานีพัฒนาที่ดินกำแพงเพชร/หมอดินอาสา เพื่อวิเคราะห์ดินและเลือกพืชที่เหมาะสมกว่า'];
+var PROD_GUIDE=[
+  ['🔬 1. วิเคราะห์ดินและเลือกพื้นที่',['ดินที่เหมาะ: ร่วน/ร่วนปนทราย ระบายน้ำดี pH 5–6 ฝน 1,000–1,500 มม./ปี','ส่งตัวอย่างดินที่สถานีพัฒนาที่ดินกำแพงเพชร (บริการฟรี) เพื่อได้คำแนะนำปุ๋ยเฉพาะแปลง','เลี่ยงพื้นที่ที่มีการระบาดของโรคใบด่าง (ห่างอย่างน้อย 10 กม. สำหรับแปลงผลิตท่อนพันธุ์)']],
+  ['🐄 2. ปรับปรุงบำรุงดิน',['ปุ๋ยอินทรีย์ (มูลไก่ มูลสุกร มูลโค) 500–1,000 กก./ไร่ หว่านทั่วแปลงก่อนไถพรวน','พืชปุ๋ยสด เช่น ปอเทือง ถั่วพร้า ไถกลบช่วงออกดอก ก่อนปลูกมัน','pH ต่ำกว่า 5 หว่านโดโลไมท์ 100 กก./ไร่','ชั้นดินดาน ไถระเบิดดานทุก 3–5 ปี (แบบตารางหมากรุก) ร่วมกับวัสดุอินทรีย์','ไม่เผาเศษซาก ไถกลบหรือคลุมดินแทน']],
+  ['🚜 3. เตรียมดินและท่อนพันธุ์',['ไถผาล 3 ลึก 30–50 ซม. แล้วไถพรวนผาล 7 อีก 1 ครั้ง','ต้นพันธุ์ปลอดโรค ตัดเก็บไว้ไม่เกิน 15 วัน · ท่อนยาว 20–25 ซม. มี 5–7 ตา เส้นผ่านศูนย์กลาง ≥ 2 ซม.','แช่ท่อนพันธุ์ 5–10 นาที กันแมลงที่ติดมา: ไทอะมีโทแซม 25% WG 4 ก. หรืออิมิดาคลอพริด 70% WG 4 ก. หรือไดโนทีฟูแรน 10% WP 40 ก. ต่อน้ำ 20 ลิตร']],
+  ['📏 4. ปลูก',['ยกร่อง ระยะแถว 100–120 ซม. ระยะต้น 60–80 ซม. (1,600–2,600 ต้น/ไร่) ปักตั้งตรงบนสันร่อง']],
+  ['🌿 5. กำจัดวัชพืช',['อย่างน้อย 2 ครั้ง: ครั้งแรกพ่นสารคุมวัชพืชหลังปลูก ครั้งที่สองจอบดายหรือพ่นสารเมื่อมันงอก 1–2 เดือน','หมั่นตรวจไม่ให้วัชพืชคลุมแปลง']],
+  ['🧪 6. ใส่ปุ๋ยเคมีตามเนื้อดิน (อายุ 1–3 เดือน หรือหลังกำจัดวัชพืชครั้งแรก ขณะดินชื้น)',['ดินทราย / ร่วนทราย: 15-7-18 อัตรา 100 กก./ไร่','ดินร่วนเหนียว: 15-7-18 อัตรา 50 กก./ไร่','ดินเหนียวปนกรวด: 15-15-15 อัตรา 30–40 กก./ไร่','มีผลวิเคราะห์ดิน ใส่ตามคำแนะนำของผลวิเคราะห์']],
+  ['💧 7. น้ำช่วงแล้ง',['ฝนน้อยกว่า 40 มม. ในรอบ 6 สัปดาห์ ให้น้ำ ~40 มม./ครั้ง ทุก 2 สัปดาห์ จนพ้นแล้ง (น้ำหยดมีประสิทธิภาพที่สุด)']],
+  ['🦟 8. โรคและแมลง',['สำรวจแปลงทุก 2 สัปดาห์ ตั้งแต่งอกจนเก็บเกี่ยว (เดินแบบตัว U)','ใบด่าง: ใช้ท่อนพันธุ์สะอาด ถอนต้นที่มีอาการใส่ถุงทำลายนอกแปลง ห้ามนำไปขยายพันธุ์ แจ้งเจ้าหน้าที่','แมลงหวี่ขาวยาสูบ (พาหะใบด่าง) / เพลี้ยแป้ง: อิมิดาคลอพริด 70% WG หรือไทอะมีโทแซม 25% WG 4 ก./น้ำ 20 ลิตร','ไรแดง (ระบาดช่วงแล้ง): ไพริดาเบน 20% WP 10 ก. หรือสไปโรมีซิเฟน 24% SC 6 มล. ต่อน้ำ 20 ลิตร · สลับกลุ่มสาร ไม่ใช้ชนิดเดียวเกิน 3 ครั้งติด','โคนเน่าหัวเน่า: ยกร่องระบายน้ำ ไถระเบิดดินดาน ปรับระยะปลูกให้กว้าง']],
+  ['🌾 9. เก็บเกี่ยวและเก็บท่อนพันธุ์',['อายุ 8–14 เดือนตามพันธุ์','ต้นพันธุ์ตัดยาว ≥ 80 ซม. มัด 20–25 ลำ เก็บตั้งในร่ม โคนชิดดิน/พูนดินรดน้ำ']]
+];
+function prodGuideHtml(cls){
+  var h='';
+  if(cls&&SOIL[cls])h+='<div class="panel" style="border-left:6px solid '+SOIL[cls].c+'"><h3>แปลงนี้: '+cls+' '+esc(SOIL[cls].n)+'</h3><p class="small" style="margin:4px 0">'+esc(SOIL_ADVICE[cls].h)+'</p><ul class="small" style="margin:0;padding-left:18px">'+SOIL_ADVICE[cls].i.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div>';
+  h+=PROD_GUIDE.map(function(s){return '<div class="panel"><h3>'+esc(s[0])+'</h3><ul class="small" style="margin:6px 0 0;padding-left:18px">'+s[1].map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div>';}).join('');
+  h+='<p class="small muted">ที่มา: สถาบันวิจัยพืชไร่และพืชทดแทนพลังงาน กรมวิชาการเกษตร (2563) เทคโนโลยีการผลิตท่อนพันธุ์มันสำปะหลังสะอาดและมีคุณภาพ · ความเหมาะสมของดิน: กรมพัฒนาที่ดิน (Agri-Map) · ใช้สารเคมีตามคำแนะนำบนฉลาก</p>';
+  return h;
+}
+function openProdGuide(cls){$('#drawer').classList.remove('hidden');$('#dTitle').textContent='คู่มือปรับปรุงบำรุงดินและการจัดการผลิตมันสำปะหลัง';$('#dBody').innerHTML=prodGuideHtml(cls);}
+var _soilAdviceHtmlV16=soilAdviceHtml;
+soilAdviceHtml=function(k){return _soilAdviceHtmlV16(k)+(SOIL[k]?'<p style="margin:6px 0 0"><a href="#" onclick="openProdGuide(\''+k+'\');return false">📘 คู่มือปรับปรุงดินและการจัดการผลิต ›</a></p>':'');};
+var _plotPanelV16=plotPanel;
+plotPanel=function(D){var h=_plotPanelV16(D);return h?h.replace(/<\/div>$/,'<p class="small" style="margin:8px 0 0"><a href="#" onclick="openProdGuide(\''+(D.soil||'')+'\');return false">📘 คู่มือปรับปรุงดินและการจัดการผลิต ›</a></p></div>'):h;};
+
+</script>
+</body>
+</html>
